@@ -39,6 +39,7 @@ class DUETModel(nn.Module):
 
     def forward(self, input):
         # x: [batch_size, seq_len, n_vars]
+           
         if self.CI:
             channel_independent_input = rearrange(input, 'b l n -> (b n) l 1')
 

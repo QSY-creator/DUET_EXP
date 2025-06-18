@@ -48,7 +48,6 @@ class Linear_extractor(nn.Module):
 
 
     def encoder(self, x):
-        #在这里添加个下采样
         seasonal_init, trend_init = self.decompsition(x)
         seasonal_init, trend_init = seasonal_init.permute(
             0, 2, 1), trend_init.permute(0, 2, 1)
@@ -66,9 +65,6 @@ class Linear_extractor(nn.Module):
             seasonal_output = self.Linear_Seasonal(seasonal_init)
             trend_output = self.Linear_Trend(trend_init)
         x = seasonal_output + trend_output
-        #在这里添加个多尺度混合
-
-        ##或者想想多尺度怎么和季节趋势分解排列组合下
         return x.permute(0, 2, 1)
 
     def forecast(self, x_enc):
@@ -80,5 +76,5 @@ class Linear_extractor(nn.Module):
         if x_enc.shape[0] == 0:
             return torch.empty((0, self.pred_len, self.enc_in)).to(x_enc.device)
         dec_out = self.forecast(x_enc)
-        return dec_out[:, -self.pred_len:, :]  # [B, L, D]
+        return dec_out[:, -self.pred_len:, :]  # [B, L, D]#这里为什么要这么取，也有必要吗？感觉需要调整
 
