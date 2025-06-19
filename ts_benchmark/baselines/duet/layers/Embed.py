@@ -162,6 +162,7 @@ class DataEmbedding_wo_pos(nn.Module):
         return self.dropout(x)
 
 
+
 class PatchEmbedding(nn.Module):
     def __init__(self, d_model, patch_len, stride, padding, dropout):
         super(PatchEmbedding, self).__init__()

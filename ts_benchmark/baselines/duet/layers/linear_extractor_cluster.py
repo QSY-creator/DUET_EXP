@@ -372,7 +372,12 @@ class Linear_extractor_cluster(nn.Module):
         loss *= loss_coef
 
         dispatcher = SparseDispatcher(self.num_experts, gates)
-        
+        if self.CI:
+            x_norm = rearrange(x, "(x y) l c -> x l (y c)", y=self.n_vars)
+            x_norm = self.revin(x_norm, "norm")
+            x_norm = rearrange(x_norm, "x l (y c) -> (x y) l c", y=self.n_vars)
+        else:
+            x_norm = self.revin(x, "norm")
 
         expert_inputs = dispatcher.dispatch(x)
 
