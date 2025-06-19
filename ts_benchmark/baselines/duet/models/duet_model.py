@@ -37,7 +37,7 @@ class DUETModel(nn.Module):
 
         self.linear_head = nn.Sequential(nn.Linear(config.d_model, config.pred_len), nn.Dropout(config.fc_dropout))
 
-def forward(self, input):
+    def forward(self, input):
         #方案一：在每个moe之前完成下采样，并将每个尺度的都送进moe进行处理，但问题是每个moe内部就进行趋势分解和合并了，输出了完整的，没法进行趋势和季节分别尺度混合在混合。
         #我有一个大胆的想法，moe内部混合完之后，我外部再进行混合，然后再进行多尺度混合，但是我不是很确定，原本的是对谁进行季节和趋势的分解？也是完整的吗？是的，是完整的，直接输入归一化后的各种尺度组成的列表。然后直接输入到趋势分解函数中。
         #目前采用的是方案二，即在每个moe内部进行

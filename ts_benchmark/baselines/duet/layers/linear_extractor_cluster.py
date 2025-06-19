@@ -9,9 +9,9 @@ from einops import rearrange
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from layers.Autoformer_EncDec import series_decomp
-from layers.Embed import DataEmbedding_wo_pos
-from layers.StandardNorm import Normalize
+from ts_benchmark.baselines.duet.layers.Autoformer_EncDec import series_decomp
+from ts_benchmark.baselines.duet.layers.Embed import DataEmbedding_wo_pos
+from ts_benchmark.baselines.duet.layers.StandardNorm import Normalize
 
 class DFT_series_decomp(nn.Module):
     """

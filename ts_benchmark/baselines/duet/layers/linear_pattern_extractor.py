@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from ..layers.Autoformer_EncDec import series_decomp
+from ts_benchmark.baselines.duet.layers.Autoformer_EncDec import series_decomp
 
 
 class Linear_extractor(nn.Module):
@@ -81,4 +81,3 @@ class Linear_extractor(nn.Module):
             return torch.empty((0, self.pred_len, self.enc_in)).to(x_enc.device)
         dec_out = self.forecast(x_enc)
         return dec_out[:, -self.pred_len:, :]  # [B, L, D]
-
