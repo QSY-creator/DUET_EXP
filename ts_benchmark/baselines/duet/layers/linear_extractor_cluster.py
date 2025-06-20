@@ -162,6 +162,7 @@ class Linear_extractor_cluster(nn.Module):
         if x.shape[0] == 1:
             return torch.tensor([0], device=x.device, dtype=x.dtype)
         return x.float().var() / (x.float().mean() ** 2 + eps)
+    #该代码计算了样本的变异系数的平方，变异系数是样本标准差与样本均值的比值，平方后可以消除负数的影响，变异系数的意义是衡量一组数据的波动程度。eps是一个很小的数，用于避免除以0的情况。
 
     def _gates_to_load(self, gates):
         """Compute the true load per expert, given the gates.
@@ -280,10 +281,14 @@ class Linear_extractor_cluster(nn.Module):
         dispatcher = SparseDispatcher(self.num_experts, gates)
         if self.CI:
             x_norm = rearrange(x, "(x y) l c -> x l (y c)", y=self.n_vars)
+          #把原来channel_input的输入形状由(b n) l 1变为(b l n)，其中b是batch size，n是变量数，l是时间步长。
+          #这样做的目的是为了将每个变量的时间序列数据分开归一化。分开归一化的目的是为了使每个变量的归一化参数独立于其他变量，从而更好地捕捉每个变量的特征。
             x_norm = self.revin(x_norm, "norm")
             x_norm = rearrange(x_norm, "x l (y c) -> (x y) l c", y=self.n_vars)
+            #把归一化后的数据形状由(b l n)变为(b n) l 1，这样做的目的是为了将每个变量的时间序列数据重新组合成原来的形状，以便后续处理。
         else:
             x_norm = self.revin(x, "norm")
+            #本代码中添加了Revin归一化层，Revin是一个自定义的归一化层，作用是对输入数据进行归一化处理，返回归一化后的数据。
 
         expert_inputs = dispatcher.dispatch(x)
 
