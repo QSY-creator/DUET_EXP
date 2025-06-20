@@ -49,7 +49,12 @@ DEFAULT_TRANSFORMER_BASED_HYPER_PARAMS = {
     "num_experts": 4,
     "noisy_gating": True,
     "k": 1,
-    "CI": True
+    "CI": True,
+    "top_k": 5,
+    "down_sampling_layers": 3,
+    "down_sampling_window": 2,
+    "decomp_method":"moving_avg"
+
 }
 
 

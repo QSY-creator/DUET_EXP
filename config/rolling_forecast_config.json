@@ -16,7 +16,9 @@
             "input_chunk_length": 96,
             "output_chunk_length": 336,
             "add_relative_index": true,
-            "norm": true
+            "norm": true,
+            "top_k":5,
+            "decomp_method":"moving_avg"
         }
     },
 
