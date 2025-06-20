@@ -210,7 +210,7 @@ class Linear_extractor(nn.Module):
         self.configs = configs
         self.seq_len = configs.seq_len
         self.channel_independence =configs.channel_independence
-
+        self.use_future_temporal_feature = configs.use_future_temporal_feature
         self.pred_len = configs.horizon
         self.layer = configs.e_layers
         
