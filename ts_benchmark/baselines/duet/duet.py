@@ -58,7 +58,8 @@ DEFAULT_TRANSFORMER_BASED_HYPER_PARAMS = {
     "use_norm":0,
     "embed":"fixed",
     "freq":"h",
-    "channel_independence":1
+    "channel_independence":1,
+    "use_future_temporal_feature": 0
 
 }
 
