@@ -214,6 +214,8 @@ class Linear_extractor(nn.Module):
         self.pred_len = configs.horizon
         self.layer = configs.e_layers
         
+        print("DEBUG: configs.c_out =", configs.c_out)
+        
         if configs.decomp_method == 'moving_avg':
             self.decompsition = series_decomp(configs.moving_avg)
         elif configs.decomp_method == "dft_decomp":
@@ -360,7 +362,7 @@ class Linear_extractor(nn.Module):
                     dec_out = self.projection_layer(dec_out)
                 else:
                     dec_out = self.projection_layer(dec_out)
-                dec_out = dec_out.reshape(B, self.configs.c_out, self.pred_len).permute(0, 2, 1).contiguous()#.contiguous()是为了确保内存连续性?
+                dec_out = dec_out.reshape(B, self.configs.c_out, self.pred_len).permute(0, 2, 1).contiguous()#.contiguous()是为了确保内存连续性
                 dec_out_list.append(dec_out)
 
         else:

@@ -136,7 +136,7 @@ class DUET(ModelBase):
         self.config.dec_in = column_num#column_num表示数据的列数
         # 设置输出的维度
         self.config.c_out = column_num
-
+        print("column_num为:", column_num)
         # 如果模型名称为MICN，则将标签长度设置为序列长度
         if self.model_name == "MICN":
             setattr(self.config, "label_len", self.config.seq_len)
