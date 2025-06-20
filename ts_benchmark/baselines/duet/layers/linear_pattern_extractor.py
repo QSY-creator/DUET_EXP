@@ -305,7 +305,7 @@ class Linear_extractor(nn.Module):
         x_mark_enc=None
         
         x_enc, x_mark_enc = self.__multi_scale_process_inputs(x, x_mark_enc)##下采样，输入时间序列BLN，输出[BLN;BLN;..]
-
+   
         x_list = []
         x_mark_list = []
         if x_mark_enc is not None:
@@ -343,14 +343,14 @@ class Linear_extractor(nn.Module):
             enc_out_list = self.pdm_blocks[i](enc_out_list)
 
         # Future Multipredictor Mixing as decoder for future
-        dec_out_list = self.future_multi_mixing(B, enc_out_list, x_list)
+        dec_out_list = self.future_multi_mixing(B, enc_out_list, x_list,N)
 
         dec_out = torch.stack(dec_out_list, dim=-1).sum(-1)#torch.stack将多个tensor沿着新维度拼接，dim=-1表示在最后一个维度拼接
         #将多个尺度对齐后的样本拼接之后求和，相当于把各尺度对齐后的特征直接相加
         dec_out = self.normalize_layers[0](dec_out, 'denorm')#该行代码是对解码输出进行反归一化处理
         return dec_out
     
-    def future_multi_mixing(self, B, enc_out_list, x_list):
+    def future_multi_mixing(self, B, enc_out_list, x_list,N):
         dec_out_list = []
         if self.channel_independence == 1:
             x_list = x_list[0]
@@ -362,7 +362,7 @@ class Linear_extractor(nn.Module):
                     dec_out = self.projection_layer(dec_out)
                 else:
                     dec_out = self.projection_layer(dec_out)
-                dec_out = dec_out.reshape(B, self.configs.c_out, self.pred_len).permute(0, 2, 1).contiguous()#.contiguous()是为了确保内存连续性
+                dec_out = dec_out.reshape(B, N, self.pred_len).permute(0, 2, 1).contiguous()#.contiguous()是为了确保内存连续性
                 dec_out_list.append(dec_out)
 
         else:
