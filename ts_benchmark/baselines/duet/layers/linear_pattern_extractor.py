@@ -209,7 +209,7 @@ class Linear_extractor(nn.Module):
         super(Linear_extractor, self).__init__()
         self.configs = configs
         self.seq_len = configs.seq_len
-        self.channel_independence =self.CI
+        self.channel_independence =configs.CI
 
         self.pred_len = configs.horizon
         self.layer = configs.e_layers
