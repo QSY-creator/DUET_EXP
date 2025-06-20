@@ -122,95 +122,46 @@ class MultiScaleTrendMixing(nn.Module):
         out_trend_list.reverse()
         # 返回out_trend_list
         return out_trend_list
-
-class ConfigManager:
-    """
-    管理配置参数，提供默认值和参数访问
-    """
-    @staticmethod
-    def get_config(configs):
-        # TimeMixer参数默认值
-        default_params = {
-            'e_layers': 2,
-            'use_future_temporal_feature': False,
-            'channel_independence': 0,
-            'moving_avg': 25,
-            'top_k': 5,
-            'decomp_method': 'moving_avg',
-            'down_sampling_window': 2,
-            'down_sampling_layers': 3,
-            'down_sampling_method': 'avg',
-            'use_norm': 1,
-            'embed': 'timeF',
-            'freq': 'h',
-            'dropout': 0.1,
-            'd_ff': None  # 将在下面设置
-        }
-        
-        # 创建一个新的配置对象，包含所有必要的参数
-        class Config:
-            pass
-        
-        config = Config()
-        
-        # 复制原始配置中的所有属性
-        for key, value in vars(configs).items():
-            setattr(config, key, value)
-        
-        # 设置默认值（如果原始配置中没有）
-        for key, value in default_params.items():
-            if not hasattr(config, key):
-                setattr(config, key, value)
-        
-        # 特殊处理d_ff，如果没有设置，则设置为d_model的4倍
-        if config.d_ff is None:
-            config.d_ff = config.d_model * 4
-            
-        return config
-
 class PastDecomposableMixing(nn.Module):
     def __init__(self, configs):
         super(PastDecomposableMixing, self).__init__()
-        # 使用ConfigManager获取完整配置
-        self.config = ConfigManager.get_config(configs)
-        
-        self.seq_len = self.config.seq_len
-        self.pred_len = self.config.pred_len
-        self.down_sampling_window = self.config.down_sampling_window
+        self.seq_len = configs.seq_len
+        self.pred_len = configs.pred_len
+        self.down_sampling_window = configs.down_sampling_window
 
         # 初始化层归一化
-        self.layer_norm = nn.LayerNorm(self.config.d_model)
+        self.layer_norm = nn.LayerNorm(configs.d_model)
         # 初始化dropout
-        self.dropout = nn.Dropout(self.config.dropout)
+        self.dropout = nn.Dropout(configs.dropout)
         # 初始化通道独立性
-        self.channel_independence = self.config.channel_independence
+        self.channel_independence = configs.channel_independence
 
         # 根据配置选择分解方法
-        if self.config.decomp_method == 'moving_avg':
-            self.decompsition = series_decomp(self.config.moving_avg)
-        elif self.config.decomp_method == "dft_decomp":
-            self.decompsition = DFT_series_decomp(self.config.top_k)
+        if configs.decomp_method == 'moving_avg':
+            self.decompsition = series_decomp(configs.moving_avg)
+        elif configs.decomp_method == "dft_decomp":
+            self.decompsition = DFT_series_decomp(configs.top_k)
         else:
             raise ValueError('decompsition is error')
 
         # 如果通道独立性为0，则初始化交叉层
-        if self.config.channel_independence == 0:
+        if configs.channel_independence == 0:
             self.cross_layer = nn.Sequential(
-                nn.Linear(in_features=self.config.d_model, out_features=self.config.d_ff),
+                nn.Linear(in_features=configs.d_model, out_features=configs.d_ff),
                 nn.GELU(),
-                nn.Linear(in_features=self.config.d_ff, out_features=self.config.d_model),
+                nn.Linear(in_features=configs.d_ff, out_features=configs.d_model),
             )
 
         # Mixing season
-        self.mixing_multi_scale_season = MultiScaleSeasonMixing(self.config)
+        self.mixing_multi_scale_season = MultiScaleSeasonMixing(configs)
 
         # Mxing trend
-        self.mixing_multi_scale_trend = MultiScaleTrendMixing(self.config)
+        self.mixing_multi_scale_trend = MultiScaleTrendMixing(configs)
 
         self.out_cross_layer = nn.Sequential(
-            nn.Linear(in_features=self.config.d_model, out_features=self.config.d_ff),
+            nn.Linear(in_features=configs.d_model, out_features=configs.d_ff),
             nn.GELU(),
-            nn.Linear(in_features=self.config.d_ff, out_features=self.config.d_model),
+            nn.Linear(in_features=configs.d_ff, out_features=configs.d_model),
         )
 
     def forward(self, x_list):
@@ -256,41 +207,26 @@ class Linear_extractor(nn.Module):
         individual: Bool, whether shared model among different variates.
         """
         super(Linear_extractor, self).__init__()
-        # 使用ConfigManager获取完整配置
-        self.config = ConfigManager.get_config(configs)
-        self.configs = configs  # 保留原始配置，以便兼容性
+        self.configs = configs
+        self.seq_len = configs.seq_len
+        self.channel_independence =self.CI
+
+        self.pred_len = configs.horizon
+        self.layer = configs.e_layers
         
-        # 从配置中获取参数
-        self.seq_len = self.config.seq_len
-        self.pred_len = self.config.pred_len
-        self.layer = self.config.e_layers
-        self.use_future_temporal_feature = self.config.use_future_temporal_feature
-        self.channel_independence = self.config.channel_independence
-        self.moving_avg = self.config.moving_avg
-        self.top_k = self.config.top_k
-        self.decomp_method = self.config.decomp_method
-        self.down_sampling_window = self.config.down_sampling_window
-        self.down_sampling_layers = self.config.down_sampling_layers
-        self.down_sampling_method = self.config.down_sampling_method
-        self.use_norm = self.config.use_norm
-        self.embed = self.config.embed
-        self.freq = self.config.freq
-        self.dropout = self.config.dropout
-        self.d_ff = self.config.d_ff
-        
-        # 初始化分解方法
-        if self.decomp_method == 'dft_decomp':
-            self.decompsition = DFT_series_decomp(self.top_k)
+        if configs.decomp_method == 'moving_avg':
+            self.decompsition = series_decomp(configs.moving_avg)
+        elif configs.decomp_method == "dft_decomp":
+            self.decompsition = DFT_series_decomp(configs.top_k)
         else:
-            self.decompsition = series_decomp(self.moving_avg)
-        
+            raise ValueError('decompsition is error')
         # 初始化预处理
-        self.preprocess = series_decomp(self.moving_avg)
+        self.preprocess = series_decomp(configs.moving_avg)
+
         
         self.individual = individual
-        self.channels = self.config.enc_in
-        self.enc_in = 1 if hasattr(self.config, 'CI') and self.config.CI else self.config.enc_in
-        
+        self.channels = configs.enc_in
+        self.enc_in =configs.enc_in
         if self.individual:
             self.Linear_Seasonal = nn.ModuleList()
             self.Linear_Trend = nn.ModuleList()
@@ -313,76 +249,60 @@ class Linear_extractor(nn.Module):
                 (1 / self.seq_len) * torch.ones([self.pred_len, self.seq_len]))
             self.Linear_Trend.weight = nn.Parameter(
                 (1 / self.seq_len) * torch.ones([self.pred_len, self.seq_len]))
-                
         self.normalize_layers = torch.nn.ModuleList(
             [
-                Normalize(self.channels, affine=True, non_norm=True if self.use_norm == 0 else False)
-                for i in range(self.down_sampling_layers + 1)
+                Normalize(self.configs.enc_in, affine=True, non_norm=True if configs.use_norm == 0 else False)
+                for i in range(configs.down_sampling_layers + 1)
             ]
         )
 
         self.predict_layers = torch.nn.ModuleList(
             [
                 torch.nn.Linear(
-                    self.seq_len // (self.down_sampling_window ** i),
-                    self.pred_len,
+                    configs.seq_len // (configs.down_sampling_window ** i),
+                    configs.pred_len,
                 )
-                for i in range(self.down_sampling_layers + 1)
+                for i in range(configs.down_sampling_layers + 1)
             ]
         )
 
         if self.channel_independence == 1:
             self.projection_layer = nn.Linear(
-                self.config.d_model, 1, bias=True)
+                configs.d_model, 1, bias=True)
         else:
             self.projection_layer = nn.Linear(
-                self.config.d_model, self.config.c_out, bias=True)
+                configs.d_model, configs.c_out, bias=True)
 
             self.out_res_layers = torch.nn.ModuleList([
                 torch.nn.Linear(
-                    self.seq_len // (self.down_sampling_window ** i),
-                    self.seq_len // (self.down_sampling_window ** i),
+                    configs.seq_len // (configs.down_sampling_window ** i),
+                    configs.seq_len // (configs.down_sampling_window ** i),
                 )
-                for i in range(self.down_sampling_layers + 1)
+                for i in range(configs.down_sampling_layers + 1)
             ])
 
             self.regression_layers = torch.nn.ModuleList(
                 [
                     torch.nn.Linear(
-                        self.seq_len // (self.down_sampling_window ** i),
-                        self.pred_len,
+                        configs.seq_len // (configs.down_sampling_window ** i),
+                        configs.pred_len,
                     )
-                    for i in range(self.down_sampling_layers + 1)
+                    for i in range(configs.down_sampling_layers + 1)
                 ]
             )
         if self.channel_independence == 1:
-            self.enc_embedding = DataEmbedding_wo_pos(1, self.config.d_model, self.embed, self.freq,
-                                                            self.dropout)
+            self.enc_embedding = DataEmbedding_wo_pos(1, configs.d_model, configs.embed, configs.freq,
+                                                            configs.dropout)
         else:
-            self.enc_embedding = DataEmbedding_wo_pos(self.config.enc_in, self.config.d_model, self.embed, self.freq,
-                                                            self.dropout)
-        self.pdm_blocks = nn.ModuleList([PastDecomposableMixing(self.config)
-                                         for _ in range(self.layer)])
+            self.enc_embedding = DataEmbedding_wo_pos(configs.enc_in, configs.d_model, configs.embed, configs.freq,
+                                                            configs.dropout)
+        self.pdm_blocks = nn.ModuleList([PastDecomposableMixing(configs)
+                                         for _ in range(configs.e_layers)])
 
-    def out_projection(self, dec_out, i, out_res):
-        dec_out = self.projection_layer(dec_out)
-        out_res = out_res.permute(0, 2, 1)
-        out_res = self.out_res_layers[i](out_res)
-        out_res = self.regression_layers[i](out_res).permute(0, 2, 1)
-        dec_out = dec_out + out_res
-        return dec_out
+    def encoder(self, x):
+        x_mark_enc=None
         
-    def encoder(self, x_enc, x_mark_enc=None, x_mark_dec=None):
-        # 如果使用未来的时间特征
-        if self.use_future_temporal_feature and x_mark_dec is not None:
-            if self.channel_independence == 1:
-                B, T, N = x_enc.size()
-                x_mark_dec = x_mark_dec.repeat(N, 1, 1)
-                self.x_mark_dec = self.enc_embedding(None, x_mark_dec)
-            else:
-                self.x_mark_dec = self.enc_embedding(None, x_mark_dec)
-        
-        x_enc, x_mark_enc = self.__multi_scale_process_inputs(x_enc, x_mark_enc)##下采样，输入时间序列BLN，输出[BLN;BLN;..]
+        x_enc, x_mark_enc = self.__multi_scale_process_inputs(x, x_mark_enc)##下采样，输入时间序列BLN，输出[BLN;BLN;..]
 
         x_list = []
         x_mark_list = []
@@ -440,7 +360,7 @@ class Linear_extractor(nn.Module):
                     dec_out = self.projection_layer(dec_out)
                 else:
                     dec_out = self.projection_layer(dec_out)
-                dec_out = dec_out.reshape(B, self.config.c_out, self.pred_len).permute(0, 2, 1).contiguous()#.contiguous()是为了确保内存连续性?
+                dec_out = dec_out.reshape(B, self.configs.c_out, self.pred_len).permute(0, 2, 1).contiguous()#.contiguous()是为了确保内存连续性?
                 dec_out_list.append(dec_out)
 
         else:
@@ -451,6 +371,15 @@ class Linear_extractor(nn.Module):
                 dec_out_list.append(dec_out)
 
         return dec_out_list
+    
+    
+    def out_projection(self, dec_out, i, out_res):
+        dec_out = self.projection_layer(dec_out)
+        out_res = out_res.permute(0, 2, 1)
+        out_res = self.out_res_layers[i](out_res)
+        out_res = self.regression_layers[i](out_res).permute(0, 2, 1)
+        dec_out = dec_out + out_res
+        return dec_out
     
     def pre_enc(self, x_list):
         if self.channel_independence == 1:
@@ -465,15 +394,15 @@ class Linear_extractor(nn.Module):
             return (out1_list, out2_list)
 
     def __multi_scale_process_inputs(self, x_enc, x_mark_enc):
-        if self.down_sampling_method == 'max':
-            down_pool = torch.nn.MaxPool1d(self.down_sampling_window, return_indices=False)
-        elif self.down_sampling_method == 'avg':
-            down_pool = torch.nn.AvgPool1d(self.down_sampling_window)
-        elif self.down_sampling_method == 'conv':
+        if self.configs.down_sampling_method == 'max':
+            down_pool = torch.nn.MaxPool1d(self.configs.down_sampling_window, return_indices=False)
+        elif self.configs.down_sampling_method == 'avg':
+            down_pool = torch.nn.AvgPool1d(self.configs.down_sampling_window)
+        elif self.configs.down_sampling_method == 'conv':
             padding = 1 if torch.__version__ >= '1.5.0' else 2
-            down_pool = nn.Conv1d(in_channels=self.config.enc_in, out_channels=self.config.enc_in,
+            down_pool = nn.Conv1d(in_channels=self.configs.enc_in, out_channels=self.configs.enc_in,
                                   kernel_size=3, padding=padding,
-                                  stride=self.down_sampling_window,
+                                  stride=self.configs.down_sampling_window,
                                   padding_mode='circular',
                                   bias=False)
         else:
@@ -489,15 +418,15 @@ class Linear_extractor(nn.Module):
         x_enc_sampling_list.append(x_enc.permute(0, 2, 1))
         x_mark_sampling_list.append(x_mark_enc)
 
-        for i in range(self.down_sampling_layers):
+        for i in range(self.configs.down_sampling_layers):
             x_enc_sampling = down_pool(x_enc_ori)
 
             x_enc_sampling_list.append(x_enc_sampling.permute(0, 2, 1))
             x_enc_ori = x_enc_sampling
 
             if x_mark_enc_mark_ori is not None:
-                x_mark_sampling_list.append(x_mark_enc_mark_ori[:, ::self.down_sampling_window, :])
-                x_mark_enc_mark_ori = x_mark_enc_mark_ori[:, ::self.down_sampling_window, :]
+                x_mark_sampling_list.append(x_mark_enc_mark_ori[:, ::self.configs.down_sampling_window, :])
+                x_mark_enc_mark_ori = x_mark_enc_mark_ori[:, ::self.configs.down_sampling_window, :]
 
         x_enc = x_enc_sampling_list
         if x_mark_enc_mark_ori is not None:
@@ -507,7 +436,9 @@ class Linear_extractor(nn.Module):
 
         return x_enc, x_mark_enc
 
-    def forecast(self, x_enc, x_mark_enc=None, x_dec=None, x_mark_dec=None):
+
+
+    def forecast(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
         # Encoder
         return self.encoder(x_enc, x_mark_enc, x_mark_dec)
 
