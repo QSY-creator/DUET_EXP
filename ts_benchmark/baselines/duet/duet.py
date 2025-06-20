@@ -57,7 +57,8 @@ DEFAULT_TRANSFORMER_BASED_HYPER_PARAMS = {
     "decomp_method":"moving_avg",
     "use_norm":0,
     "embed":"fixed",
-    "freq":"h"
+    "freq":"h",
+    "channel_independence":1
 
 }
 

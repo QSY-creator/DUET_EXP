@@ -140,7 +140,7 @@ class Linear_extractor_cluster(nn.Module):
         self.revin = RevIN(self.n_vars)
 
         self.CI = config.CI
-        self.channel_independence = config.CI
+        self.channel_independence = config.channel_independence
         self.softplus = nn.Softplus()
         self.softmax = nn.Softmax(1)
         self.register_buffer("mean", torch.tensor([0.0]))
