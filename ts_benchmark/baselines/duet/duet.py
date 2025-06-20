@@ -55,7 +55,9 @@ DEFAULT_TRANSFORMER_BASED_HYPER_PARAMS = {
     "down_sampling_window": 2,
     "down_sampling_method": "avg",
     "decomp_method":"moving_avg",
-    "use_norm":0
+    "use_norm":0,
+    "embed":"fixed",
+    "freq":"h"
 
 }
 
