@@ -438,12 +438,12 @@ class Linear_extractor(nn.Module):
 
 
 
-    def forecast(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
+    def forecast(self, x_enc):
         # Encoder
-        return self.encoder(x_enc, x_mark_enc, x_mark_dec)
+        return self.encoder(x_enc)
 
-    def forward(self, x_enc, x_mark_enc=None, x_dec=None, x_mark_dec=None):
+    def forward(self, x_enc):
         if x_enc.shape[0] == 0:
             return torch.empty((0, self.pred_len, self.enc_in)).to(x_enc.device)
-        dec_out = self.forecast(x_enc, x_mark_enc, x_dec, x_mark_dec)
+        dec_out = self.forecast(x_enc)
         return dec_out[:, -self.pred_len:, :]  # [B, L, D]
