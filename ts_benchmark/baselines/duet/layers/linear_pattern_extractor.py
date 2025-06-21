@@ -320,9 +320,11 @@ class Linear_extractor(nn.Module):
         else:
             for i, x in zip(range(len(x_enc)), x_enc, ):
                 B, T, N = x.size()
-                x = self.normalize_layers[i](x, 'norm')
+                print("形状应该是pl1,下采样完每一个尺度的样本形状为",x.size)
+                x = self.normalize_layplers[i](x, 'norm')
                 if self.channel_independence == 1:         
                     x = x.permute(0, 2, 1).contiguous().reshape(B * N, T, 1)
+                    print("形状应该是pl1,下采样完每一个尺度的样本形状最终变形结果为",x.size)
                 x_list.append(x)
 ###
 
@@ -341,7 +343,7 @@ class Linear_extractor(nn.Module):
         # Past Decomposable Mixing as encoder for past
         for i in range(self.layer):
             enc_out_list = self.pdm_blocks[i](enc_out_list)
-
+            print("应该是pl1,DEBUG: enc_out_list[0].shape =", enc_out_list[0].shape)
         # Future Multipredictor Mixing as decoder for future
         dec_out_list = self.future_multi_mixing(B, enc_out_list, x_list,N)
 
@@ -362,7 +364,7 @@ class Linear_extractor(nn.Module):
                     dec_out = self.projection_layer(dec_out)
                 else:
                     dec_out = self.projection_layer(dec_out)
-                dec_out = dec_out.reshape(B, N, self.pred_len).permute(0, 2, 1).contiguous()#.contiguous()是为了确保内存连续性
+                print("应该是pl1,DEBUG: dec_out.shape =", dec_out.shape)
                 dec_out_list.append(dec_out)
 
         else:

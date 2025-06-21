@@ -298,5 +298,6 @@ class Linear_extractor_cluster(nn.Module):
             self.experts[i](expert_inputs[i]) for i in range(self.num_experts)
         ]
         y = dispatcher.combine(expert_outputs)
+        print("应该是Bl1,Debug: y shape:", y.shape)
 
         return y, loss
