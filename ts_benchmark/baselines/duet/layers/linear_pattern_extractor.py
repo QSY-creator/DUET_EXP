@@ -254,6 +254,7 @@ class Linear_extractor(nn.Module):
                 (1 / self.seq_len) * torch.ones([self.pred_len, self.seq_len]))
             self.Linear_Trend.weight = nn.Parameter(
                 (1 / self.seq_len) * torch.ones([self.pred_len, self.seq_len]))
+        
         self.normalize_layers = torch.nn.ModuleList(
             [
                 Normalize(self.configs.enc_in, affine=True, non_norm=True if configs.use_norm == 0 else False)
