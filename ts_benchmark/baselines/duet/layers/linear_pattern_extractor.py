@@ -320,11 +320,11 @@ class Linear_extractor(nn.Module):
         else:
             for i, x in zip(range(len(x_enc)), x_enc, ):
                 B, T, N = x.size()
-                print("形状应该是pl1,下采样完每一个尺度的样本形状为",x.size)
-                x = self.normalize_layplers[i](x, 'norm')
+                print("形状应该是pl1,下采样完每一个尺度的样本形状为",x.size())
+                x = self.normalize_layers[i](x, 'norm')
                 if self.channel_independence == 1:         
                     x = x.permute(0, 2, 1).contiguous().reshape(B * N, T, 1)
-                    print("形状应该是pl1,下采样完每一个尺度的样本形状最终变形结果为",x.size)
+                    print("形状应该是pl1,下采样完每一个尺度的样本形状最终变形结果为",x.size())
                 x_list.append(x)
 ###
 
