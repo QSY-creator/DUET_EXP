@@ -183,15 +183,18 @@ class PastDecomposableMixing(nn.Module):
 
         # bottom-up season mixing
         out_season_list = self.mixing_multi_scale_season(season_list)
+        print("大概是pl1,DEBUG: out_season_list[0].shape =", out_season_list[0].shape)
         # top-down trend mixing
         out_trend_list = self.mixing_multi_scale_trend(trend_list)
-
+        print("大概是pl1,DEBUG: out_trend_list[0].shape =", out_trend_list[0].shape)
         out_list = []
         for ori, out_season, out_trend, length in zip(x_list, out_season_list, out_trend_list,
                                                       length_list):
             out = out_season + out_trend
+            print("应该是什么样的形状,大概是pl1,DEBUG: out.shape =", out.shape)
             if self.channel_independence:
                 out = ori + self.out_cross_layer(out)
+                print("应该大概是pl1,DEBUG: out.shape =", out.shape)
             out_list.append(out[:, :length, :])
         return out_list
 
@@ -359,12 +362,13 @@ class Linear_extractor(nn.Module):
             for i, enc_out in zip(range(len(x_list)), enc_out_list):
                 dec_out = self.predict_layers[i](enc_out.permute(0, 2, 1)).permute(
                     0, 2, 1)  # align temporal dimension
+                print("在经过predict_layers后,DEBUG: dec_out.shape =", dec_out.shape)
                 if self.use_future_temporal_feature:
                     dec_out = dec_out + self.x_mark_dec
                     dec_out = self.projection_layer(dec_out)
                 else:
                     dec_out = self.projection_layer(dec_out)
-                print("应该是pl1,DEBUG: dec_out.shape =", dec_out.shape)
+                print("应该是pl1,经过投影工程处理后DEBUG: dec_out.shape =", dec_out.shape)
                 dec_out_list.append(dec_out)
 
         else:
