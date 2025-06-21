@@ -36,6 +36,7 @@ class DUETModel(nn.Module):
         )
 
         self.linear_head = nn.Sequential(nn.Linear(config.d_model, config.pred_len), nn.Dropout(config.fc_dropout))
+        self.feature_adapter = nn.Linear(config.horizon, config.d_model)
 
     def forward(self, input):
         #方案一：在每个moe之前完成下采样，并将每个尺度的都送进moe进行处理，但问题是每个moe内部就进行趋势分解和合并了，输出了完整的，没法进行趋势和季节分别尺度混合在混合。
@@ -59,6 +60,7 @@ class DUETModel(nn.Module):
 
         # B x d_model x n_vars -> B x n_vars x d_model
         temporal_feature = rearrange(temporal_feature, 'b d n -> b n d')
+        temporal_feature = self.feature_adapter(temporal_feature) 
         if self.n_vars > 1:
             changed_input = rearrange(input, 'b l n -> b n l')
             channel_mask = self.mask_generator(changed_input)
