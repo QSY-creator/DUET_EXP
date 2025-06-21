@@ -225,3 +225,5 @@ Sizes of tensors must match except in dimension 0. Expected size 1 but got size 
 2025-06-21 10:12:21 [INFO] ts_benchmark.report.utils.leaderboard(162): There are 7 NaN values in the leaderboard due to a higher-than-threshold NaN ratio in the corresponding model+algorithm pairs.
 
 尚未解决
+
+并且这样的修改，使得模型有点复杂，显存有些不足
