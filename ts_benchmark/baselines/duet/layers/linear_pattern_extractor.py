@@ -61,7 +61,7 @@ class Linear_extractor(nn.Module):
     def encoder(self, x):
         if self.individual == "c":
             self.cluster_prob, cluster_emb = self.Cluster_assigner(x, self.cluster_emb)
-            print("cluster_emb.shape",cluster_emb.shape)
+            
         else:
             self.cluster_prob = None
         seasonal_init, trend_init = self.decompsition(x)

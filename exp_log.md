@@ -9,9 +9,8 @@
 2.另外，这个不知道ccm要不要用transformer,好像不用？
 
 
+
 遇到的报错：
-
-
 
 cluster_emb.shape torch.Size([7, 4, 512])
 EarlyStopping counter: 5 out of 5
