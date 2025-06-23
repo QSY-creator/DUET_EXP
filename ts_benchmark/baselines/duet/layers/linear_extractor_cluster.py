@@ -5,7 +5,6 @@ from .linear_pattern_extractor import Linear_extractor as expert
 from .distributional_router_encoder import encoder
 from .RevIN import RevIN
 from einops import rearrange
-######添加了DFT_series_decomp
 
 from .Autoformer_EncDec import series_decomp
 from .Embed import DataEmbedding_wo_pos
