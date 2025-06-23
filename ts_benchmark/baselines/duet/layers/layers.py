@@ -223,6 +223,7 @@ class _Cluster_assigner(nn.Module):
         self.n_cluster = 4
         self.d_model = d_model
         self.epsilon = epsilon
+        self.device ='cuda:0' 
         # linear_layer = [nn.Linear(seq_len, d_model), nn.ReLU(), nn.Linear(d_model, d_model)]
         # self.linear = MLP(seq_len, d_model)
         self.linear = nn.Linear(seq_len, d_model)
@@ -266,6 +267,7 @@ class Cluster_assigner(nn.Module):
         self.n_cluster = 4
         self.d_model = d_model
         self.epsilon = epsilon
+        self.device = 'cuda:0' 
         # linear_layer = [nn.Linear(seq_len, d_model), nn.ReLU(), nn.Linear(d_model, d_model)]
         # self.linear = MLP(seq_len, d_model)
         self.linear = nn.Linear(seq_len, d_model)

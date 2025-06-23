@@ -25,6 +25,7 @@ class Linear_extractor(nn.Module):
         self.channels = configs.enc_in
         self.n_cluster = 4
         self.enc_in = 1 if configs.CI else configs.enc_in
+        self.device='cuda:0' #注意这里会和原本的device冲突,只不过在这个文件里因为individual被写死为c,所以不会遇到
         if self.individual==1 or self.individual=='True' or self.individual=='true':
             self.Linear_Seasonal = nn.ModuleList()
             self.Linear_Trend = nn.ModuleList()
