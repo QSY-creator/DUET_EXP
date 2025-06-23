@@ -22,7 +22,7 @@ class DFT_series_decomp(nn.Module):
         xf[freq <= top_k_freq.min()] = 0
         x_season = torch.fft.irfft(xf)
         x_trend = x - x_season
-        return x_season, x_trend
+        return x_season, x_enc_intrend
 
 class MultiScaleSeasonMixing(nn.Module):
     """
@@ -227,11 +227,11 @@ class Linear_extractor(nn.Module):
             raise ValueError('decompsition is error')
         # 初始化预处理
         self.preprocess = series_decomp(configs.moving_avg)
-
-        
+        self.CI = configs.CI
         self.individual = individual
         self.channels = configs.enc_in
-        self.enc_in =configs.enc_in
+        self.enc_in = 1 if self.CI else configs.enc_in
+        
         if self.individual:
             self.Linear_Seasonal = nn.ModuleList()
             self.Linear_Trend = nn.ModuleList()
@@ -453,6 +453,6 @@ class Linear_extractor(nn.Module):
 
     def forward(self, x_enc):
         if x_enc.shape[0] == 0:
-            return torch.empty((0, self.pred_len, self.enc_in[-1])).to(x_enc.device)
+            return torch.empty((0, self.pred_len, self.enc_in)).to(x_enc.device)
         dec_out = self.forecast(x_enc)
         return dec_out[:, -self.pred_len:, :]  # [B, L, D]
