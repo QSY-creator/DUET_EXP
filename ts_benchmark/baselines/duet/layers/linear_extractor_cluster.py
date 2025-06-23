@@ -160,7 +160,7 @@ class Linear_extractor_cluster(nn.Module):
         self.n_vars = config.enc_in
         self.revin = RevIN(self.n_vars)
 
-        self.CI = config.CI
+        self.CI = 0
         self.softplus = nn.Softplus()
         self.softmax = nn.Softmax(1)
         self.register_buffer("mean", torch.tensor([0.0]))

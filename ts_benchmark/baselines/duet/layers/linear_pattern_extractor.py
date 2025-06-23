@@ -18,12 +18,14 @@ class Linear_extractor(nn.Module):
         """
         super(Linear_extractor, self).__init__()
         self.seq_len = configs.seq_len
-
+        configs.CI=0
         self.pred_len = configs.d_model
         self.decompsition = series_decomp(configs.moving_avg)
         self.individual = configs.individual
         self.channels = configs.enc_in
         self.n_cluster = 4
+        self.d_ff = configs.d_ff
+        self.n_vars = configs.enc_in
         self.enc_in = 1 if configs.CI else configs.enc_in
         self.device='cuda:0' #注意这里会和原本的device冲突,只不过在这个文件里因为individual被写死为c,所以不会遇到
         if self.individual==1 or self.individual=='True' or self.individual=='true':

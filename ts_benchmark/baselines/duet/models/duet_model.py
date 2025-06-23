@@ -9,7 +9,7 @@ class DUETModel(nn.Module):
     def __init__(self, config):
         super(DUETModel, self).__init__()
         self.cluster = Linear_extractor_cluster(config)
-        self.CI = config.CI
+        self.CI = 0
         self.n_vars = config.enc_in
         self.mask_generator = Mahalanobis_mask(config.seq_len)
         self.Channel_transformer = Encoder(
