@@ -453,6 +453,6 @@ class Linear_extractor(nn.Module):
 
     def forward(self, x_enc):
         if x_enc.shape[0] == 0:
-            return torch.empty((0, self.pred_len, self.enc_in)).to(x_enc.device)
+            return torch.empty((0, self.pred_len, self.enc_in[-1])).to(x_enc.device)
         dec_out = self.forecast(x_enc)
         return dec_out[:, -self.pred_len:, :]  # [B, L, D]
