@@ -5,34 +5,11 @@ from .linear_pattern_extractor import Linear_extractor as expert
 from .distributional_router_encoder import encoder
 from ..layers.RevIN import RevIN
 from einops import rearrange
-######添加了DFT_series_decomp
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
+
 from .Autoformer_EncDec import series_decomp
 from .Embed import DataEmbedding_wo_pos
-from .StandardNorm import Normalize
 
-class DFT_series_decomp(nn.Module):
-    """
-    Series decomposition block
-    """
 
-    def __init__(self, top_k=5):
-        super(DFT_series_decomp, self).__init__()
-        self.top_k = top_k
-
-    def forward(self, x):
-        xf = torch.fft.rfft(x)
-        freq = abs(xf)
-        freq[0] = 0
-        top_k_freq, top_list = torch.topk(freq, self.top_k)
-        xf[freq <= top_k_freq.min()] = 0
-        x_season = torch.fft.irfft(xf)
-        x_trend = x - x_season
-        return x_season, x_trend
-
-#添加了PastDecomposableMixing，没有同步import
 
 class PastDecomposableMixing(nn.Module):
     def __init__(self, configs):
