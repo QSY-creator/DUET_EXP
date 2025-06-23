@@ -177,7 +177,7 @@ class _Cluster_assigner(nn.Module):
     def __init__(self, n_vars, n_cluster, seq_len, d_model):
         super(_Cluster_assigner, self).__init__()
         self.n_vars = n_vars
-        self.n_cluster = n_cluster
+        self.n_cluster = 4
         self.linear = nn.Linear(seq_len, d_model)
         self.cluster = nn.Linear(d_model*2, 1)
         
@@ -220,7 +220,7 @@ class _Cluster_assigner(nn.Module):
     def __init__(self, n_vars, n_cluster, seq_len, d_model, device, epsilon=0.05):
         super(Cluster_assigner, self).__init__()
         self.n_vars = n_vars
-        self.n_cluster = n_cluster
+        self.n_cluster = 4
         self.d_model = d_model
         self.epsilon = epsilon
         # linear_layer = [nn.Linear(seq_len, d_model), nn.ReLU(), nn.Linear(d_model, d_model)]
@@ -263,7 +263,7 @@ class Cluster_assigner(nn.Module):
     def __init__(self, n_vars, n_cluster, seq_len, d_model, device, epsilon=0.05):
         super(Cluster_assigner, self).__init__()
         self.n_vars = n_vars
-        self.n_cluster = n_cluster
+        self.n_cluster = 4
         self.d_model = d_model
         self.epsilon = epsilon
         # linear_layer = [nn.Linear(seq_len, d_model), nn.ReLU(), nn.Linear(d_model, d_model)]

@@ -23,6 +23,7 @@ class Linear_extractor(nn.Module):
         self.decompsition = series_decomp(configs.moving_avg)
         self.individual = configs.individual
         self.channels = configs.enc_in
+        self.n_cluster = 4
         self.enc_in = 1 if configs.CI else configs.enc_in
         if self.individual==1 or self.individual=='True' or self.individual=='true':
             self.Linear_Seasonal = nn.ModuleList()
