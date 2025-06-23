@@ -20,13 +20,14 @@ class Linear_extractor(nn.Module):
         self.seq_len = configs.seq_len
         configs.CI=0
         self.pred_len = configs.d_model
+        self.enc_in = 1 if configs.CI else configs.enc_in
         self.decompsition = series_decomp(configs.moving_avg)
         self.individual = configs.individual
         self.channels = configs.enc_in
         self.n_cluster = 4
         self.d_ff = configs.d_ff
         self.n_vars = configs.enc_in
-        self.enc_in = 1 if configs.CI else configs.enc_in
+        
         self.device='cuda:0' #注意这里会和原本的device冲突,只不过在这个文件里因为individual被写死为c,所以不会遇到
         if self.individual==1 or self.individual=='True' or self.individual=='true':
             self.Linear_Seasonal = nn.ModuleList()
@@ -60,6 +61,7 @@ class Linear_extractor(nn.Module):
     def encoder(self, x):
         if self.individual == "c":
             self.cluster_prob, cluster_emb = self.Cluster_assigner(x, self.cluster_emb)
+            print("cluster_emb.shape",cluster_emb.shape)
         else:
             self.cluster_prob = None
         seasonal_init, trend_init = self.decompsition(x)
@@ -79,7 +81,7 @@ class Linear_extractor(nn.Module):
             seasonal_output = self.Linear_Seasonal(seasonal_init)
             trend_output = self.Linear_Trend(trend_init)
         elif self.individual == "c":
-            seasonal_output = self.Linear_Seasonal(seasonal_init, cluster_emb)
+            seasonal_output = self.Linear_Seasonal(seasonal_init, self.cluster_prob)
             trend_output = self.Linear_Trend(trend_init, cluster_emb)
         x = seasonal_output + trend_output
         return x.permute(0, 2, 1)
