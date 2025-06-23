@@ -12,76 +12,28 @@
 遇到的报错：
 
 
-cluster_emb.shape torch.Size([10, 4, 512])
-
-cluster_emb.shape torch.Size([17, 4, 512])
-
-cluster_emb.shape torch.Size([15, 4, 512])
-
-cluster_emb.shape torch.Size([16, 4, 512])
-
-cluster_emb.shape torch.Size([16, 4, 512])
-
-cluster_emb.shape torch.Size([21, 4, 512])
-
-cluster_emb.shape torch.Size([11, 4, 512])
-
-cluster_emb.shape torch.Size([19, 4, 512])
-
-cluster_emb.shape torch.Size([13, 4, 512])
-
-cluster_emb.shape torch.Size([21, 4, 512])
-
-cluster_emb.shape torch.Size([11, 4, 512])
-
-cluster_emb.shape torch.Size([20, 4, 512])
-
-cluster_emb.shape torch.Size([12, 4, 512])
-
-cluster_emb.shape torch.Size([22, 4, 512])
-
-cluster_emb.shape torch.Size([10, 4, 512])
-
-cluster_emb.shape torch.Size([18, 4, 512])
 
 cluster_emb.shape torch.Size([7, 4, 512])
-
 EarlyStopping counter: 5 out of 5
-
 cluster_emb.shape torch.Size([1, 4, 512])
-
-scheduling DUET: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [01:54<00:00, 114.06s/it]
-
-collecting DUET: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00, 6502.80it/s]
-
-2025-06-23 09:28:12 [INFO] ts_benchmark.recording(148): Traceback (most recent call last):
-
+scheduling DUET: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [02:24<00:00, 144.78s/it]
+collecting DUET: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00, 7653.84it/s]
+2025-06-23 13:16:07 [INFO] ts_benchmark.recording(148): Traceback (most recent call last):
   File "/home/featurize/work/DUET_EXP/ts_benchmark/evaluation/strategy/forecasting.py", line 54, in execute
-
     single_series_results = self._execute(
-
-    ^^^^^^^^^^^^^^
-
+                            ^^^^^^^^^^^^^^
   File "/home/featurize/work/DUET_EXP/ts_benchmark/evaluation/strategy/fixed_forecast.py", line 78, in _execute
-
     inference_data = pd.DataFrame(
-
-    ^^^^^^^^^^^^^
-
+                     ^^^^^^^^^^^^^
   File "/home/featurize/work/.local/lib/python3.11/site-packages/pandas/core/frame.py", line 722, in __init__
-
     mgr = ndarray_to_mgr(
-
-    ^^^^^^^^^^^^^^^
-
+          ^^^^^^^^^^^^^^^
   File "/home/featurize/work/.local/lib/python3.11/site-packages/pandas/core/internals/construction.py", line 349, in ndarray_to_mgr
-
     _check_values_indices_shape_match(values, index, columns)
-
   File "/home/featurize/work/.local/lib/python3.11/site-packages/pandas/core/internals/construction.py", line 420, in _check_values_indices_shape_match
-
     raise ValueError(f"Shape of passed values is {passed}, indices imply {implied}")
-
 ValueError: Shape of passed values is (96, 7), indices imply (3116, 7)
 
 Shape of passed values is (96, 7), indices imply (3116, 7)
+2025-06-23 13:16:07 [INFO] ts_benchmark.recording(103): loading log file /home/featurize/work/DUET_EXP/result/ETTh1/DUET/DUET.1750684567.featurize.2988.csv.tar.gz
+2025-06-23 13:16:07 [INFO] ts_benchmark.report.utils.leaderboard(162): There are 7 NaN values in the leaderboard due to a higher-than-threshold NaN ratio in the corresponding model+algorithm pairs.
