@@ -82,7 +82,7 @@ class Linear_extractor(nn.Module):
             trend_output = self.Linear_Trend(trend_init)
         elif self.individual == "c":
             seasonal_output = self.Linear_Seasonal(seasonal_init, self.cluster_prob)
-            trend_output = self.Linear_Trend(trend_init, cluster_emb)
+            trend_output = self.Linear_Trend(trend_init, self.cluster_prob)
         x = seasonal_output + trend_output
         return x.permute(0, 2, 1)
 
