@@ -49,7 +49,8 @@ DEFAULT_TRANSFORMER_BASED_HYPER_PARAMS = {
     "num_experts": 4,
     "noisy_gating": True,
     "k": 1,
-    "CI": True
+    "CI": True,
+    "individual": "c",  # 是否为每个变量使用独立的模型
 }
 
 

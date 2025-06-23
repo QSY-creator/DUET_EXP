@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 from ..layers.Autoformer_EncDec import series_decomp
+from ts_benchmark.baselines.duet.layers.layers import *
+from ts_benchmark.baselines.duet.layers.patch_layer import *
 
 
 class Linear_extractor(nn.Module):
@@ -10,7 +12,7 @@ class Linear_extractor(nn.Module):
     Paper link: https://arxiv.org/pdf/2205.13504.pdf
     """
 
-    def __init__(self, configs, individual=False):
+    def __init__(self, configs):
         """
         individual: Bool, whether shared model among different variates.
         """
@@ -19,10 +21,10 @@ class Linear_extractor(nn.Module):
 
         self.pred_len = configs.d_model
         self.decompsition = series_decomp(configs.moving_avg)
-        self.individual = individual
+        self.individual = configs.individual
         self.channels = configs.enc_in
         self.enc_in = 1 if configs.CI else configs.enc_in
-        if self.individual:
+        if self.individual==1 or self.individual=='True' or self.individual=='true':
             self.Linear_Seasonal = nn.ModuleList()
             self.Linear_Trend = nn.ModuleList()
 
@@ -36,7 +38,7 @@ class Linear_extractor(nn.Module):
                     (1 / self.seq_len) * torch.ones([self.pred_len, self.seq_len]))
                 self.Linear_Trend[i].weight = nn.Parameter(
                     (1 / self.seq_len) * torch.ones([self.pred_len, self.seq_len]))
-        else:
+        elif self.individual==0 or self.individual=='False' or self.individual=='false':
             self.Linear_Seasonal = nn.Linear(self.seq_len, self.pred_len)
             self.Linear_Trend = nn.Linear(self.seq_len, self.pred_len)
 
@@ -44,14 +46,22 @@ class Linear_extractor(nn.Module):
                 (1 / self.seq_len) * torch.ones([self.pred_len, self.seq_len]))
             self.Linear_Trend.weight = nn.Parameter(
                 (1 / self.seq_len) * torch.ones([self.pred_len, self.seq_len]))
-
-
+        elif self.individual=='c':
+            self.Linear_Seasonal = Cluster_wise_linear(self.n_cluster, self.channels, self.seq_len, self.pred_len, self.device)
+            self.Linear_Trend = Cluster_wise_linear(self.n_cluster, self.channels,self.seq_len, self.pred_len, self.device)
+        if self.individual == "c":
+            self.Cluster_assigner = Cluster_assigner(self.channels, self.n_cluster, self.seq_len, self.d_ff, device=self.device)
+            self.cluster_emb = self.Cluster_assigner.cluster_emb
 
     def encoder(self, x):
+        if self.individual == "c":
+            self.cluster_prob, cluster_emb = self.Cluster_assigner(x, self.cluster_emb)
+        else:
+            self.cluster_prob = None
         seasonal_init, trend_init = self.decompsition(x)
         seasonal_init, trend_init = seasonal_init.permute(
             0, 2, 1), trend_init.permute(0, 2, 1)
-        if self.individual:
+        if self.individual==1 or self.individual=='True' or self.individual=='true':
             seasonal_output = torch.zeros([seasonal_init.size(0), seasonal_init.size(1), self.pred_len],
                                           dtype=seasonal_init.dtype).to(seasonal_init.device)
             trend_output = torch.zeros([trend_init.size(0), trend_init.size(1), self.pred_len],
@@ -61,9 +71,12 @@ class Linear_extractor(nn.Module):
                     seasonal_init[:, i, :])
                 trend_output[:, i, :] = self.Linear_Trend[i](
                     trend_init[:, i, :])
-        else:
+        elif self.individual==0 or self.individual=='False' or self.individual=='false':
             seasonal_output = self.Linear_Seasonal(seasonal_init)
             trend_output = self.Linear_Trend(trend_init)
+        elif self.individual == "c":
+            seasonal_output = self.Linear_Seasonal(seasonal_init, cluster_emb)
+            trend_output = self.Linear_Trend(trend_init, cluster_emb)
         x = seasonal_output + trend_output
         return x.permute(0, 2, 1)
 
