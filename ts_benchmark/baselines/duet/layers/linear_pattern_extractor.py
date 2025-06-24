@@ -199,8 +199,6 @@ class PastDecomposableMixing(nn.Module):
         return out_list
 
 class Linear_extractor(nn.Module):
-
-    #每个专家的处理过程
     """
     Paper link: https://arxiv.org/pdf/2205.13504.pdf
     """
