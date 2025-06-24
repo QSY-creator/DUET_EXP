@@ -4,8 +4,6 @@ from ..layers.Autoformer_EncDec import series_decomp
 
 
 class Linear_extractor(nn.Module):
-
-    #每个专家的处理过程
     """
     Paper link: https://arxiv.org/pdf/2205.13504.pdf
     """
@@ -76,5 +74,5 @@ class Linear_extractor(nn.Module):
         if x_enc.shape[0] == 0:
             return torch.empty((0, self.pred_len, self.enc_in)).to(x_enc.device)
         dec_out = self.forecast(x_enc)
-        return dec_out[:, -self.pred_len:, :]  # [B, L, D]#这里为什么要这么取，也有必要吗？感觉需要调整
+        return dec_out[:, -self.pred_len:, :]  # [B, L, D]
 
