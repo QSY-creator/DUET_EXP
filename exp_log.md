@@ -18,9 +18,7 @@
 
 ## 实验结果
 
-
 过程报错
-
 
 (base) ➜ DUET_EXP bash ./scripts/multivariate_forecast/ETTh1_script/DUET.sh
 2025-06-20 14:44:12 [INFO] ts_benchmark.data.data_source(124): Start loading 1 series in parallel
@@ -100,89 +98,6 @@ mat1 and mat2 shapes cannot be multiplied (224x96 and 512x512)
 
 
 
-应该是pl1,DEBUG: enc_out_list[0].shape = torch.Size([4, 512, 512])
-在经过predict_layers后,DEBUG: dec_out.shape = torch.Size([4, 720, 512])
-应该是pl1,经过投影工程处理后DEBUG: dec_out.shape = torch.Size([4, 720, 1])
-在经过predict_layers后,DEBUG: dec_out.shape = torch.Size([4, 720, 512])
-应该是pl1,经过投影工程处理后DEBUG: dec_out.shape = torch.Size([4, 720, 1])
-在经过predict_layers后,DEBUG: dec_out.shape = torch.Size([4, 720, 512])
-应该是pl1,经过投影工程处理后DEBUG: dec_out.shape = torch.Size([4, 720, 1])
-在经过predict_layers后,DEBUG: dec_out.shape = torch.Size([4, 720, 512])
-应该是pl1,经过投影工程处理后DEBUG: dec_out.shape = torch.Size([4, 720, 1])
-形状应该是pl1,下采样完每一个尺度的样本形状为 torch.Size([6, 512, 1])
-形状应该是pl1,下采样完每一个尺度的样本形状最终变形结果为 torch.Size([6, 512, 1])
-形状应该是pl1,下采样完每一个尺度的样本形状为 torch.Size([6, 256, 1])
-形状应该是pl1,下采样完每一个尺度的样本形状最终变形结果为 torch.Size([6, 256, 1])
-形状应该是pl1,下采样完每一个尺度的样本形状为 torch.Size([6, 128, 1])
-形状应该是pl1,下采样完每一个尺度的样本形状最终变形结果为 torch.Size([6, 128, 1])
-形状应该是pl1,下采样完每一个尺度的样本形状为 torch.Size([6, 64, 1])
-形状应该是pl1,下采样完每一个尺度的样本形状最终变形结果为 torch.Size([6, 64, 1])
-大概是pl1,DEBUG: out_season_list[0].shape = torch.Size([6, 512, 512])
-大概是pl1,DEBUG: out_trend_list[0].shape = torch.Size([6, 512, 512])
-应该是什么样的形状,大概是pl1,DEBUG: out.shape = torch.Size([6, 512, 512])
-应该大概是pl1,DEBUG: out.shape = torch.Size([6, 512, 512])
-应该是什么样的形状,大概是pl1,DEBUG: out.shape = torch.Size([6, 256, 512])
-应该大概是pl1,DEBUG: out.shape = torch.Size([6, 256, 512])
-应该是什么样的形状,大概是pl1,DEBUG: out.shape = torch.Size([6, 128, 512])
-应该大概是pl1,DEBUG: out.shape = torch.Size([6, 128, 512])
-应该是什么样的形状,大概是pl1,DEBUG: out.shape = torch.Size([6, 64, 512])
-应该大概是pl1,DEBUG: out.shape = torch.Size([6, 64, 512])
-应该是pl1,DEBUG: enc_out_list[0].shape = torch.Size([6, 512, 512])
-大概是pl1,DEBUG: out_season_list[0].shape = torch.Size([6, 512, 512])
-大概是pl1,DEBUG: out_trend_list[0].shape = torch.Size([6, 512, 512])
-应该是什么样的形状,大概是pl1,DEBUG: out.shape = torch.Size([6, 512, 512])
-应该大概是pl1,DEBUG: out.shape = torch.Size([6, 512, 512])
-应该是什么样的形状,大概是pl1,DEBUG: out.shape = torch.Size([6, 256, 512])
-应该大概是pl1,DEBUG: out.shape = torch.Size([6, 256, 512])
-应该是什么样的形状,大概是pl1,DEBUG: out.shape = torch.Size([6, 128, 512])
-应该大概是pl1,DEBUG: out.shape = torch.Size([6, 128, 512])
-应该是什么样的形状,大概是pl1,DEBUG: out.shape = torch.Size([6, 64, 512])
-应该大概是pl1,DEBUG: out.shape = torch.Size([6, 64, 512])
-应该是pl1,DEBUG: enc_out_list[0].shape = torch.Size([6, 512, 512])
-在经过predict_layers后,DEBUG: dec_out.shape = torch.Size([6, 720, 512])
-应该是pl1,经过投影工程处理后DEBUG: dec_out.shape = torch.Size([6, 720, 1])
-在经过predict_layers后,DEBUG: dec_out.shape = torch.Size([6, 720, 512])
-应该是pl1,经过投影工程处理后DEBUG: dec_out.shape = torch.Size([6, 720, 1])
-在经过predict_layers后,DEBUG: dec_out.shape = torch.Size([6, 720, 512])
-应该是pl1,经过投影工程处理后DEBUG: dec_out.shape = torch.Size([6, 720, 1])
-在经过predict_layers后,DEBUG: dec_out.shape = torch.Size([6, 720, 512])
-应该是pl1,经过投影工程处理后DEBUG: dec_out.shape = torch.Size([6, 720, 1])
-形状应该是pl1,下采样完每一个尺度的样本形状为 torch.Size([4, 512, 1])
-形状应该是pl1,下采样完每一个尺度的样本形状最终变形结果为 torch.Size([4, 512, 1])
-形状应该是pl1,下采样完每一个尺度的样本形状为 torch.Size([4, 256, 1])
-形状应该是pl1,下采样完每一个尺度的样本形状最终变形结果为 torch.Size([4, 256, 1])
-形状应该是pl1,下采样完每一个尺度的样本形状为 torch.Size([4, 128, 1])
-形状应该是pl1,下采样完每一个尺度的样本形状最终变形结果为 torch.Size([4, 128, 1])
-形状应该是pl1,下采样完每一个尺度的样本形状为 torch.Size([4, 64, 1])
-形状应该是pl1,下采样完每一个尺度的样本形状最终变形结果为 torch.Size([4, 64, 1])
-大概是pl1,DEBUG: out_season_list[0].shape = torch.Size([4, 512, 512])
-大概是pl1,DEBUG: out_trend_list[0].shape = torch.Size([4, 512, 512])
-应该是什么样的形状,大概是pl1,DEBUG: out.shape = torch.Size([4, 512, 512])
-应该大概是pl1,DEBUG: out.shape = torch.Size([4, 512, 512])
-应该是什么样的形状,大概是pl1,DEBUG: out.shape = torch.Size([4, 256, 512])
-应该大概是pl1,DEBUG: out.shape = torch.Size([4, 256, 512])
-应该是什么样的形状,大概是pl1,DEBUG: out.shape = torch.Size([4, 128, 512])
-应该大概是pl1,DEBUG: out.shape = torch.Size([4, 128, 512])
-应该是什么样的形状,大概是pl1,DEBUG: out.shape = torch.Size([4, 64, 512])
-应该大概是pl1,DEBUG: out.shape = torch.Size([4, 64, 512])
-应该是pl1,DEBUG: enc_out_list[0].shape = torch.Size([4, 512, 512])
-大概是pl1,DEBUG: out_season_list[0].shape = torch.Size([4, 512, 512])
-大概是pl1,DEBUG: out_trend_list[0].shape = torch.Size([4, 512, 512])
-应该是什么样的形状,大概是pl1,DEBUG: out.shape = torch.Size([4, 512, 512])
-应该大概是pl1,DEBUG: out.shape = torch.Size([4, 512, 512])
-应该是什么样的形状,大概是pl1,DEBUG: out.shape = torch.Size([4, 256, 512])
-应该大概是pl1,DEBUG: out.shape = torch.Size([4, 256, 512])
-应该是什么样的形状,大概是pl1,DEBUG: out.shape = torch.Size([4, 128, 512])
-应该大概是pl1,DEBUG: out.shape = torch.Size([4, 128, 512])
-应该是什么样的形状,大概是pl1,DEBUG: out.shape = torch.Size([4, 64, 512])
-应该大概是pl1,DEBUG: out.shape = torch.Size([4, 64, 512])
-应该是pl1,DEBUG: enc_out_list[0].shape = torch.Size([4, 512, 512])
-在经过predict_layers后,DEBUG: dec_out.shape = torch.Size([4, 720, 512])
-应该是pl1,经过投影工程处理后DEBUG: dec_out.shape = torch.Size([4, 720, 1])
-在经过predict_layers后,DEBUG: dec_out.shape = torch.Size([4, 720, 512])
-应该是pl1,经过投影工程处理后DEBUG: dec_out.shape = torch.Size([4, 720, 1])
-在经过predict_layers后,DEBUG: dec_out.shape = torch.Size([4, 720, 512])
-应该是pl1,经过投影工程处理后DEBUG: dec_out.shape = torch.Size([4, 720, 1])
 在经过predict_layers后,DEBUG: dec_out.shape = torch.Size([4, 720, 512])
 应该是pl1,经过投影工程处理后DEBUG: dec_out.shape = torch.Size([4, 720, 1])
 scheduling DUET: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [26:06<00:00, 1566.96s/it]
@@ -224,6 +139,14 @@ Sizes of tensors must match except in dimension 0. Expected size 1 but got size 
 2025-06-21 10:12:21 [INFO] ts_benchmark.recording(103): loading log file /home/featurize/work/DUET_EXP/result/ETTh1/DUET/DUET.1750500741.featurize.4371.csv.tar.gz
 2025-06-21 10:12:21 [INFO] ts_benchmark.report.utils.leaderboard(162): There are 7 NaN values in the leaderboard due to a higher-than-threshold NaN ratio in the corresponding model+algorithm pairs.
 
-尚未解决
+解决了，原代码的问题。
+
+收获：还是两个都有那就有可能是原代码的问题，按照逻辑判断，抽丝剥茧，逻辑突破一点点解决
 
 并且这样的修改，使得模型有点复杂，显存有些不足
+
+
+实验结果：
+
+mse_norm	0.3814762560927425
+mae_norm	0.4118980601044471
