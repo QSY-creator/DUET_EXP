@@ -3,7 +3,7 @@ import torch.nn as nn
 from torch.distributions.normal import Normal
 from .linear_pattern_extractor import Linear_extractor as expert
 from .distributional_router_encoder import encoder
-from ..layers.RevIN import RevIN
+from .RevIN import RevIN
 from einops import rearrange
 
 
@@ -134,7 +134,7 @@ class Linear_extractor_cluster(nn.Module):
         self.n_vars = config.enc_in
         self.revin = RevIN(self.n_vars)
 
-        self.CI = config.CI
+        self.CI = 0
         self.softplus = nn.Softplus()
         self.softmax = nn.Softmax(1)
         self.register_buffer("mean", torch.tensor([0.0]))
