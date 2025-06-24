@@ -30,16 +30,15 @@ class DUETModel(nn.Module):
                     dropout=config.dropout,
                     activation=config.activation,
                 )
-                for _ in range(config.e_layers)   #这是一个列表推导式,只不过比较长，[]for i in range(config.e_layers)
+                for _ in range(config.e_layers)
             ],
-            norm_layer=torch.nn.LayerNorm(config.d_model)#归一化层
+            norm_layer=torch.nn.LayerNorm(config.d_model)
         )
 
         self.linear_head = nn.Sequential(nn.Linear(config.d_model, config.pred_len), nn.Dropout(config.fc_dropout))
 
     def forward(self, input):
         # x: [batch_size, seq_len, n_vars]
-           
         if self.CI:
             channel_independent_input = rearrange(input, 'b l n -> (b n) l 1')
 
