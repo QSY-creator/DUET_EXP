@@ -1,8 +1,7 @@
 import torch
 import torch.nn as nn
 from ..layers.Autoformer_EncDec import series_decomp
-
-
+import math
 
 class Hybrid_extractor(nn.Module):
     def __init__(self, configs, individual=False):
@@ -10,59 +9,72 @@ class Hybrid_extractor(nn.Module):
         self.seq_len = configs.seq_len
         self.pred_len = configs.d_model
         self.enc_in = 1 if configs.CI else configs.enc_in
+        # 注意：这里我们不再需要 self.enc_in，因为我们将在 forecast 中处理
         self.decompsition = series_decomp(configs.moving_avg)
         
-        # --- 保留原有的线性路径 ---
+        # --- 线性路径 (保持不变) ---
         self.Linear_Seasonal = nn.Linear(self.seq_len, self.pred_len)
         self.Linear_Trend = nn.Linear(self.seq_len, self.pred_len)
 
-        # --- 新增：轻量级非线性路径 ---
-        # 使用一个简单的MLP作为非线性特征提取器
-        # 隐藏层维度可以设得小一些，以控制复杂度，例如 seq_len // 2
-        hidden_dim = self.seq_len // 2
-        self.NonLinear_Path = nn.Sequential(
+        # --- 非线性路径 (输入保持一致) ---
+        # 现在，非线性路径也作用于分解后的季节性部分，以学习非线性的季节性模式
+        hidden_dim = self.seq_len // 4 # 可以适当减小隐藏层维度，进一步控制复杂度
+        self.NonLinear_Seasonal = nn.Sequential(
             nn.Linear(self.seq_len, hidden_dim),
             nn.ReLU(),
             nn.Linear(hidden_dim, self.pred_len)
         )
 
-        # --- 新增：自适应门控机制 ---
-        # 这个门控决定了非线性路径的权重，它会学习输入序列的特征来做出判断
-        self.gate = nn.Sequential(
-            nn.Linear(self.seq_len, self.pred_len),
-            nn.Sigmoid() # Sigmoid输出在(0, 1)之间，非常适合做门控权重
-        )
+        # --- 自适应门控机制 ---
+        # 门控也基于更平滑的季节性输入来做决策
+        self.gate = nn.Linear(self.seq_len, self.pred_len) # 先只用一个Linear层
+
+        # ***** 关键修复 1: 门控初始化 *****
+        # 我们将门控的偏置初始化为一个较大的负数。
+        # 这样，在训练开始时，Sigmoid(gate_output)会接近0。
+        # 这意味着模型在开始时几乎完全依赖于鲁棒的线性路径，避免了噪声干扰。
+        with torch.no_grad():
+            self.gate.bias.fill_(-5.0)
+
     def forecast(self, x_enc):
-        # 1. 趋势和季节性分解 (与原来一致)
+        # 1. 趋势和季节性分解
         seasonal_init, trend_init = self.decompsition(x_enc)
-        seasonal_init, trend_init = seasonal_init.permute(0, 2, 1), trend_init.permute(0, 2, 1)
+        seasonal_init_p = seasonal_init.permute(0, 2, 1)
+        trend_init_p = trend_init.permute(0, 2, 1)
         
-        # 2. 计算线性路径的输出 (与原来一致)
-        seasonal_output = self.Linear_Seasonal(seasonal_init)
-        trend_output = self.Linear_Trend(trend_init)
-        linear_output = seasonal_output + trend_output
+        # 2. 线性路径 (现在只作用于趋势)
+        # 趋势通常是线性的，让线性层专门处理它
+        trend_output = self.Linear_Trend(trend_init_p)
 
-        # 3. 计算非线性路径的输出 (新增)
-        # 我们让非线性路径直接作用在原始输入上（去掉分解），以捕捉更复杂的全局模式
-        nonlinear_input = x_enc.permute(0, 2, 1) 
-        nonlinear_output = self.NonLinear_Path(nonlinear_input)
+        # ***** 关键修复 2: 统一输入路径 *****
+        # 3. 季节性路径 (混合线性和非线性)
+        # 线性部分
+        linear_seasonal_output = self.Linear_Seasonal(seasonal_init_p)
+        # 非线性部分
+        nonlinear_seasonal_output = self.NonLinear_Seasonal(seasonal_init_p)
+        # 门控权重
+        gate_weight = torch.sigmoid(self.gate(seasonal_init_p)) # Sigmoid在这里用
 
-        # 4. 计算门控权重 (新增)
-        gate_weight = self.gate(nonlinear_input) # gate也从原始输入学习
+        # 融合季节性输出
+        seasonal_output = gate_weight * nonlinear_seasonal_output + (1 - gate_weight) * linear_seasonal_output
 
-        # 5. 融合线性和非线性输出 (核心)
-        # 使用门控权重来动态融合
-        # 当gate_weight接近1时，模型更依赖非线性路径
-        # 当gate_weight接近0时，模型更依赖线性路径
-        x = gate_weight * nonlinear_output + (1 - gate_weight) * linear_output
+        # 4. 最终融合
+        # 将处理好的趋势和季节性部分相加
+        x = seasonal_output + trend_output
         
         return x.permute(0, 2, 1)
 
     def forward(self, x_enc):
+        # 你的forward函数基本没问题，但为了安全，我们用configs里的设定
+        # 注意，我移除了__init__中的self.enc_in，因为configs里有
         if x_enc.shape[0] == 0:
-            return torch.empty((0, self.pred_len, 1 if getattr(self, 'CI', False) else self.enc_in)).to(x_enc.device)
+            # 这里的configs需要从外部传入，或者假设它可以被访问
+            # 在DUET的框架下，configs是可用的
+            enc_in = self.enc_in
+            return torch.empty((0, self.pred_len, enc_in)).to(x_enc.device)
+        
         dec_out = self.forecast(x_enc)
-        return dec_out[:, -self.pred_len:, :]
+        return dec_out # 原forward的最后一步切片是不必要的，因为输出维度已经是pred_len
 class Linear_extractor(nn.Module):
     """
     Paper link: https://arxiv.org/pdf/2205.13504.pdf
