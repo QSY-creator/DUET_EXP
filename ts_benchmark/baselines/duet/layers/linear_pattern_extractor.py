@@ -9,6 +9,7 @@ class Hybrid_extractor(nn.Module):
         super(Hybrid_extractor, self).__init__()
         self.seq_len = configs.seq_len
         self.pred_len = configs.d_model
+        self.enc_in = 1 if configs.CI else configs.enc_in
         self.decompsition = series_decomp(configs.moving_avg)
         
         # --- 保留原有的线性路径 ---
