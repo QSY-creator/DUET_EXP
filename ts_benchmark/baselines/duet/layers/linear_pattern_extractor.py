@@ -59,7 +59,7 @@ class Hybrid_extractor(nn.Module):
 
     def forward(self, x_enc):
         if x_enc.shape[0] == 0:
-            return torch.empty((0, self.pred_len, 1 if configs.CI else configs.enc_in)).to(x_enc.device)
+            return torch.empty((0, self.pred_len, 1 if getattr(self, 'CI', False) else self.enc_in)).to(x_enc.device)
         dec_out = self.forecast(x_enc)
         return dec_out[:, -self.pred_len:, :]
 class Linear_extractor(nn.Module):
