@@ -253,7 +253,7 @@ class Linear_extractor_cluster(nn.Module):
             load = self._gates_to_load(gates)
         return gates, load
 
-    def forward(self, x, loss_coef=0.1):
+    def forward(self, x, loss_coef=1):
         """Args:
         x: tensor shape [batch_size, input_size]
         train: a boolean scalar.
