@@ -319,6 +319,8 @@ class DUET(ModelBase):
 
                 total_loss = loss + loss_importance
                 total_loss.backward()
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
+
 
                 optimizer.step()
 
