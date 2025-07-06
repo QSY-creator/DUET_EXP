@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from torch.distributions.normal import Normal
-from .linear_pattern_extractor import Linear_extractor as expert
+from .linear_pattern_extractor import MambaExpert  as expert
 from .distributional_router_encoder import encoder
 from ..layers.RevIN import RevIN
 from einops import rearrange

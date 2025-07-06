@@ -2,11 +2,66 @@ import torch
 import torch.nn as nn
 from ..layers.Autoformer_EncDec import series_decomp
 
+from mamba_ssm import Mamba
+
+class MambaExpert(nn.Module):
+    """
+    一个基于Mamba的状态空间模型专家。
+    用于捕捉复杂的、动态的、非线性的模式。
+    【说明】 这个专家现在接收一个config对象，而不是多个独立参数，以匹配你现有代码的风格。
+    """
+    def __init__(self, config):
+        super(MambaExpert, self).__init__()
+        # 从config中获取必要的参数
+        seq_len = config.seq_len
+        pred_len = config.pred_len
+        d_model = getattr(config, 'd_model', 128) # 使用getattr提供默认值
+        d_state = getattr(config, 'd_state', 16)
+        d_conv = getattr(config, 'd_conv', 4)
+        expand = getattr(config, 'expand', 2)
+
+        # 输入投影层，将单变量序列映射到Mamba的维度
+        # 【说明】 这里的输入维度是config.enc_in，因为你的数据可能是多变量的。
+        # 如果是单变量，config.enc_in就是1。
+        self.input_proj = nn.Linear(config.enc_in, d_model)
+        
+        self.mamba = Mamba(
+            d_model=d_model,
+            d_state=d_state,
+            d_conv=d_conv,
+            expand=expand,
+        )
+        
+        # 输出投影层，将Mamba的输出映射到预测长度
+        self.output_proj = nn.Linear(d_model * seq_len, pred_len * config.enc_in)
+        self.pred_len = pred_len
+        self.enc_in = config.enc_in
+
+    def forward(self, x):
+        # x shape: [expert_batch_size, seq_len, enc_in]
+        # Mamba需要 (batch, seq_len, d_model) 的输入
+        
+        # 【修改】 调整以适应输入形状
+        B, L, C = x.shape
+        x_proj = self.input_proj(x) # [B, L, d_model]
+        
+        mamba_out = self.mamba(x_proj) # [B, L, d_model]
+        
+        # 将输出展平并通过线性层进行预测
+        mamba_out_flat = mamba_out.flatten(start_dim=1) # [B, L * d_model]
+        prediction = self.output_proj(mamba_out_flat) # [B, pred_len * enc_in]
+        
+        # 【修改】 调整输出形状以匹配 [expert_batch_size, pred_len, enc_in]
+        prediction = prediction.view(B, self.pred_len, self.enc_in)
+        
+        return prediction
+
 
 class Linear_extractor(nn.Module):
     """
     Paper link: https://arxiv.org/pdf/2205.13504.pdf
     """
+
 
     def __init__(self, configs, individual=False):
         """

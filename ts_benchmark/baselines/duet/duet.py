@@ -49,7 +49,9 @@ DEFAULT_TRANSFORMER_BASED_HYPER_PARAMS = {
     "num_experts": 4,
     "noisy_gating": True,
     "k": 1,
-    "CI": True
+    "CI": True,
+    "ssm_weight_decay": 0.05,        # <--- 【新增】Mamba专家的权重衰减
+    "other_weight_decay": 1e-4     # <--- 【新增】其他部分的权重衰减
 }
 
 
@@ -215,6 +217,44 @@ class DUET(ModelBase):
         self.model.train()
         return total_loss
 
+    @staticmethod
+    def get_optimizer_param_groups(model, ssm_weight_decay, other_weight_decay=1e-4):
+        """
+        为模型创建参数组，专门针对MambaExpert进行差异化权重衰减。
+        这个函数现在是 DUET 类的一个静态方法。
+        """
+        ssm_params = []
+        gate_params = []
+        other_params = []
+
+        # 【说明】这里的名称 'mamba' 和 'gate'/'noise'/'W_h' 必须与
+        # 你在 DUETModel (也就是 Linear_extractor_cluster) 中定义的模块名称完全匹配。
+        for name, param in model.named_parameters():
+            if not param.requires_grad:
+                continue
+            
+            # 识别 MambaExpert 的参数
+            if 'mamba' in name:
+                ssm_params.append(param)
+            # 识别门控网络的参数
+            elif 'gate' in name or 'noise' in name or 'W_h' in name:
+                gate_params.append(param)
+            else:
+                other_params.append(param)
+                
+        param_groups = [
+            {'params': ssm_params, 'weight_decay': ssm_weight_decay, 'name': 'ssm_experts'},
+            {'params': gate_params, 'weight_decay': other_weight_decay, 'name': 'gating_system'},
+            {'params': other_params, 'weight_decay': other_weight_decay, 'name': 'other_parts'}
+        ]
+        
+        print("优化器分组完成:")
+        print(f"- {len(ssm_params)} 个参数在 'ssm_experts' 组 (weight_decay={ssm_weight_decay})")
+        print(f"- {len(gate_params)} 个参数在 'gating_system' 组 (weight_decay={other_weight_decay})")
+        print(f"- {len(other_params)} 个参数在 'other_parts' 组 (weight_decay={other_weight_decay})")
+        
+        return param_groups
+
     def forecast_fit(self, train_valid_data: pd.DataFrame, train_ratio_in_tv: float) -> "ModelBase":
         """
         Train the model.
@@ -231,6 +271,7 @@ class DUET(ModelBase):
             train_drop_last = True
             self.multi_forecasting_hyper_param_tune(train_valid_data)
 
+        
         self.model = DUETModel(self.config)
 
         print(
@@ -284,7 +325,18 @@ class DUET(ModelBase):
         else:
             criterion = nn.HuberLoss(delta=0.5)
 
-        optimizer = optim.Adam(self.model.parameters(), lr=config.lr)
+        ssm_weight_decay = getattr(config, 'ssm_weight_decay', 0.05)
+        other_weight_decay = getattr(config, 'other_weight_decay', 1e-4)
+
+        # 2. 调用我们新增的静态方法来创建参数组
+        param_groups = self.get_optimizer_param_groups(
+            self.model,
+            ssm_weight_decay=ssm_weight_decay,
+            other_weight_decay=other_weight_decay
+        )
+
+        # 3. 使用AdamW优化器，它能更好地处理权重衰减，并传入参数组
+        optimizer = optim.AdamW(param_groups, lr=config.lr)
 
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
