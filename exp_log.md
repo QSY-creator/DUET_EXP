@@ -18,6 +18,15 @@ exp_mamba_try1
 
 将seq_len，和win_size转为由超参数调整后确定而不是完全由一开始赋值确定（虽然我感觉没必要）：在init部分初始化为None,在multi_forecasting_hyper_param_tune方法结束后，再将config.seq_len确定为self.seq_len（win_size同理）
 
+2:
+
+将专家数目改成两个
+
+接下来还可以考虑采用一个mamba,一个线性，同样让他们平均使用
+
+决定开个新的分支尝试该想法，先不动优化器
+
+
 ## 实验结果
 
 ## 实验结果分析与改进
