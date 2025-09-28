@@ -3,7 +3,7 @@ import torch.nn as nn
 from einops import rearrange
 from ts_benchmark.baselines.duet.utils.masked_attention import Mahalanobis_mask, Encoder, EncoderLayer, FullAttention, AttentionLayer
 import torch
-
+from TimePro import SelectiveScanStateFn,selective_scan_fn,MLP,ProBlock,ProMamba,Encoder as TimeProEncoder,Model as TimeProModel
 
 class DUETModel(nn.Module):
     def __init__(self, config):
@@ -39,6 +39,11 @@ class DUETModel(nn.Module):
 
     def forward(self, input):
         # x: [batch_size, seq_len, n_vars]
+        
+        
+        
+        
+        
         if self.CI:
             channel_independent_input = rearrange(input, 'b l n -> (b n) l 1')
 
@@ -47,10 +52,12 @@ class DUETModel(nn.Module):
             temporal_feature = rearrange(reshaped_output, '(b n) l 1 -> b l n', b=input.shape[0])
 
         else:
-            temporal_feature, L_importance = self.cluster(input)
+            temporal_feature= TimeProModel(input)
 
         # B x d_model x n_vars -> B x n_vars x d_model
-        temporal_feature = rearrange(temporal_feature, 'b d n -> b n d')
+        
+
+        #timepro之后的结果就是bne,不用转换
         if self.n_vars > 1:
             changed_input = rearrange(input, 'b l n -> b n l')
             channel_mask = self.mask_generator(changed_input)
