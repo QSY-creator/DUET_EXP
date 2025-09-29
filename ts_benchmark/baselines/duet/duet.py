@@ -18,9 +18,9 @@ from ts_benchmark.baselines.duet.models.duet_model import DUETModel
 from ...models.model_base import ModelBase, BatchMaker
 
 DEFAULT_TRANSFORMER_BASED_HYPER_PARAMS = {
-    "enc_in": 1,
-    "dec_in": 1,
-    "c_out": 1,
+    "enc_in": 1,#timepro默认为7，可以修改下试试
+    "dec_in": 1,#同上
+    "c_out": 1,#同上
     "e_layers": 2,
     "d_layers": 1,
     "d_model": 512,
@@ -33,15 +33,15 @@ DEFAULT_TRANSFORMER_BASED_HYPER_PARAMS = {
     "win_size": 2,
     "activation": "gelu",
     "output_attention": 0,
-    "patch_len": 16,
+    "patch_len": 16,#timepro默认12
     "stride": 8,
-    "period_len": 4,
+    "period_len": 4,#timpro里没有这个参数
     "dropout": 0.2,
     "fc_dropout": 0.2,
     "moving_avg": 25,
     "batch_size": 256,
     "lradj": "type3",
-    "lr": 0.02,
+    "lr": 0.02,#默认0.00005
     "num_epochs": 100,
     "num_workers": 0,
     "loss": "huber",
@@ -49,7 +49,11 @@ DEFAULT_TRANSFORMER_BASED_HYPER_PARAMS = {
     "num_experts": 4,
     "noisy_gating": True,
     "k": 1,
-    "CI": True
+    "CI": True,
+    'feature':'M',
+    "seq_len": 96,#timepro默认为96，但是在命令行里duet一般设置为336
+    "pred_len": 96,#这个参数的值等同于horizon，但是我不知道怎么让他们同步，所以在这里用默认值把它写死，如果要同步的话应该在config里加个属性，具体来说就是在TransformerConfig里加个@property pred_len，
+
 }
 
 
@@ -63,7 +67,7 @@ class TransformerConfig:
 
     @property
     def pred_len(self):
-        return self.horizon
+        return self.horizon#这个方法的作用是让config.pred_len的值等同于config.horizon
 
 
 class DUET(ModelBase):
@@ -73,6 +77,7 @@ class DUET(ModelBase):
         self.scaler = StandardScaler()
         self.seq_len = self.config.seq_len
         self.win_size = self.config.seq_len
+
 
     @property
     def model_name(self):

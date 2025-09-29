@@ -435,8 +435,9 @@ class Model(nn.Module):
                 ProBlock(self.head_nf, self.patch_num, n_var=configs.enc_in) for l in range(configs.e_layers)
             ],
             norm_layer=torch.nn.LayerNorm(self.head_nf)
-        )
-        self.projector = nn.Linear(self.head_nf, configs.pred_len, bias=True)
+        ) 
+        self.projector = nn.Linear(self.head_nf, configs.d_model, bias=True) # <--- 关键修改，使bne转为bnd,# [B, N, E],E=d_model*patch_num
+
 
     def forecast(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
         if self.use_norm:
@@ -456,10 +457,11 @@ class Model(nn.Module):
         enc_out = rearrange(enc_out, "(b n) p d -> b n (p d)", n=n_vars)
 
         enc_out = self.encoder(enc_out, attn_mask=None)
-       
+         # 投影到目标维度 configs.d_model
+        enc_out = self.projector(enc_out) # enc_out: (B, N_vars, configs.d_model)
         return enc_out
 
 
     def forward(self, x_enc, x_mark_enc, x_dec, x_mark_dec, mask=None):
         enc_out = self.forecast(x_enc, x_mark_enc, x_dec, x_mark_dec)
-        return enc_out  # [B, N, E],E=d_model*patch_num
+        return enc_out 

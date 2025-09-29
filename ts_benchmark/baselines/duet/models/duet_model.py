@@ -3,7 +3,7 @@ import torch.nn as nn
 from einops import rearrange
 from ts_benchmark.baselines.duet.utils.masked_attention import Mahalanobis_mask, Encoder, EncoderLayer, FullAttention, AttentionLayer
 import torch
-from TimePro import SelectiveScanStateFn,selective_scan_fn,MLP,ProBlock,ProMamba,Encoder as TimeProEncoder,Model as TimeProModel
+from TimePro import Model as TimeProModel
 
 class DUETModel(nn.Module):
     def __init__(self, config):
@@ -34,30 +34,26 @@ class DUETModel(nn.Module):
             ],
             norm_layer=torch.nn.LayerNorm(config.d_model)
         )
-
+        self.TPM=TimeProModel(config)
         self.linear_head = nn.Sequential(nn.Linear(config.d_model, config.pred_len), nn.Dropout(config.fc_dropout))
 
     def forward(self, input):
-        # x: [batch_size, seq_len, n_vars]
-        
-        
-        
-        
+        # x: [batch_size, seq_len, n_vars](b,l,n)
         
         if self.CI:
             channel_independent_input = rearrange(input, 'b l n -> (b n) l 1')
 
-            reshaped_output, L_importance = self.cluster(channel_independent_input)
+            reshaped_output, L_importance = self.TPM(channel_independent_input)
 
             temporal_feature = rearrange(reshaped_output, '(b n) l 1 -> b l n', b=input.shape[0])
 
         else:
-            temporal_feature= TimeProModel(input)
+            temporal_feature= self.TPM(input)
 
         # B x d_model x n_vars -> B x n_vars x d_model
         
 
-        #timepro之后的结果就是bne,不用转换
+        #在timepro内进行了修改，使其自己进行了内部投影，把bne->bnd,之后的结果就是b n d,不用转换
         if self.n_vars > 1:
             changed_input = rearrange(input, 'b l n -> b n l')
             channel_mask = self.mask_generator(changed_input)
