@@ -52,7 +52,6 @@ class DUETModel(nn.Module):
 
         # B x d_model x n_vars -> B x n_vars x d_model
         
-
         #在timepro内进行了修改，使其自己进行了内部投影，把bne->bnd,之后的结果就是b n d,不用转换
         if self.n_vars > 1:
             changed_input = rearrange(input, 'b l n -> b n l')
