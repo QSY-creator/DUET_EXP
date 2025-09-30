@@ -1,18 +1,17 @@
 import torch
-from ts_benchmark.baselines.duet.layers.linear_extractor_cluster import Linear_extractor_cluster
 import torch.nn as nn
-from einops import rearrange
-from ts_benchmark.baselines.duet.utils.masked_attention import Mahalanobis_mask, Encoder, EncoderLayer, FullAttention, AttentionLayer
 import torch.nn.functional as F
 from layers.Embed import DataEmbedding_inverted
 from layers.Embed import PatchEmbedding
 from einops import rearrange, repeat
+
 import selective_scan_cuda_oflex_rh
 import math
 from einops import rearrange, repeat
 from timm.models.layers import DropPath, trunc_normal_
 from functools import partial
 from typing import Optional, Callable
+
 import DCNv4
 
 class SelectiveScanStateFn(torch.autograd.Function):
@@ -405,65 +404,41 @@ class Encoder(nn.Module):
 
         return x
 
-#上面是timepro
-class DUETModel(nn.Module):
-    def __init__(self, config):
-        super(DUETModel, self).__init__()
-        self.cluster = Linear_extractor_cluster(config)
-        self.CI = config.CI
-        self.n_vars = config.enc_in
-        self.mask_generator = Mahalanobis_mask(config.seq_len)
-        self.Channel_transformer = Encoder(
-            [
-                EncoderLayer(
-                    AttentionLayer(
-                        FullAttention(
-                            True,
-                            config.factor,
-                            attention_dropout=config.dropout,
-                            output_attention=config.output_attention,
-                        ),
-                        config.d_model,
-                        config.n_heads,
-                    ),
-                    config.d_model,
-                    config.d_ff,
-                    dropout=config.dropout,
-                    activation=config.activation,
-                )
-                for _ in range(config.e_layers)
-            ],
-            norm_layer=torch.nn.LayerNorm(config.d_model)
-        )
-        self.seq_len = config.seq_len
-        self.pred_len = config.pred_len
-        self.use_norm = config.use_norm
-        patch_len = config.patch_len
-        stride = config.stride
+
+class Model(nn.Module):
+    """
+    Paper link: https://arxiv.org/abs/2310.06625
+    """
+
+    def __init__(self, configs):
+        super(Model, self).__init__()
+        self.seq_len = configs.seq_len
+        self.pred_len = configs.pred_len
+        self.use_norm = configs.use_norm
+        patch_len = configs.patch_len
+        stride = configs.stride
         padding = stride
 
         # Embedding
         # patching and embedding
         self.patch_embedding = PatchEmbedding(
-            config.d_model, patch_len, stride, padding, config.dropout)
+            configs.d_model, patch_len, stride, padding, configs.dropout)
         
-        self.patch_num = int((config.seq_len - patch_len) / stride + 2)
+        self.patch_num = int((configs.seq_len - patch_len) / stride + 2)
 
-        self.head_nf = config.d_model * self.patch_num
-        self.use_norm = config.use_norm                       
+        self.head_nf = configs.d_model * self.patch_num
+        self.use_norm = configs.use_norm                       
 
         # Encoder-only architecture
         self.encoder = Encoder(
             [
-                ProBlock(self.head_nf, self.patch_num, n_var=config.enc_in) for l in range(config.e_layers)
+                ProBlock(self.head_nf, self.patch_num, n_var=configs.enc_in) for l in range(configs.e_layers)
             ],
             norm_layer=torch.nn.LayerNorm(self.head_nf)
         )
+        self.projector = nn.Linear(self.head_nf, configs.pred_len, bias=True)
 
-        self.linear_head = nn.Sequential(nn.Linear(config.d_model, config.pred_len), nn.Dropout(config.fc_dropout))
-
-    def forward(self, input):
-
+    def forecast(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
         if self.use_norm:
             # Normalization from Non-stationary Transformer
             # 非平稳transforemer是指处理数据特性随时间变化的transforemer,他们的模型更加考虑适应非平稳性，对数据进行归一化处理是重要操作
@@ -473,48 +448,26 @@ class DUETModel(nn.Module):
                 torch.var(x_enc, dim=1, keepdim=True, unbiased=False) + 1e-5)
             x_enc /= stdev
 
- # do patching and embedding
-        x_enc = x_enc.permute(0, 2, 1)#bln->bnl
+        # do patching and embedding
+        x_enc = x_enc.permute(0, 2, 1)
         # u: [bs * nvars x patch_num x d_model]
-        enc_out, n_vars = self.patch_embedding(x_enc)#bnl->bnpd
+        enc_out, n_vars = self.patch_embedding(x_enc)
 
-        enc_out = rearrange(enc_out, "(b n) p d -> b n (p d)", n=n_vars)# bnl
-        input=enc_out.permute(0,2,1)#bln
+        enc_out = rearrange(enc_out, "(b n) p d -> b n (p d)", n=n_vars)
 
-
-        # x: [batch_size, seq_len, n_vars]
-        if self.CI:
-            channel_independent_input = rearrange(input, 'b l n -> (b n) l 1')#(bn)l1
-
-            reshaped_output = self.encoder(channel_independent_input, attn_mask=None)#bn l 1
-            
-            temporal_feature = rearrange(reshaped_output, '(b n) l 1 -> b l n', b=input.shape[0])
-
-        else:
-            temporal_feature = self.encoder(input, attn_mask=None)#bln->bln
-
-#这里不知道为啥跳过了，dl可以互等吗，有时候直接用d表示，l表示n啥的
-        # B x d_model x n_vars -> B x n_vars x d_model
-        temporal_feature = rearrange(temporal_feature, 'b d n -> b n d')#bln->bnl
-        if self.n_vars > 1:
-            changed_input = rearrange(input, 'b l n -> b n l')
-            channel_mask = self.mask_generator(changed_input)
-
-            channel_group_feature, attention = self.Channel_transformer(x=temporal_feature, attn_mask=channel_mask)#bnl->bnl
-
-            output = self.linear_head(channel_group_feature)
-        else:
-            output = temporal_feature
-            output = self.linear_head(output)#bnl->bnd
-        
-        output = rearrange(output, 'b n d -> b d n')
-
+        enc_out = self.encoder(enc_out, attn_mask=None)
+        # B N E -> B N S -> B S N 
+        dec_out = self.projector(enc_out).permute(0, 2, 1) # filter the covariates
         if self.use_norm:
             # De-Normalization from Non-stationary Transformer
-            output = output * \
+            dec_out = dec_out * \
                     (stdev[:, 0, :].unsqueeze(1).repeat(1, self.pred_len, 1))
-            output = output + \
+            dec_out = dec_out + \
                     (means[:, 0, :].unsqueeze(1).repeat(1, self.pred_len, 1))
-            
 
-        return output[:, -self.pred_len:, :]
+        return dec_out
+
+
+    def forward(self, x_enc, x_mark_enc, x_dec, x_mark_dec, mask=None):
+        dec_out = self.forecast(x_enc, x_mark_enc, x_dec, x_mark_dec)
+        return dec_out[:, -self.pred_len:, :]  # [B, L, D]#该形状里的D指

@@ -1,18 +1,15 @@
 import torch
-from ts_benchmark.baselines.duet.layers.linear_extractor_cluster import Linear_extractor_cluster
 import torch.nn as nn
-from einops import rearrange
-from ts_benchmark.baselines.duet.utils.masked_attention import Mahalanobis_mask, Encoder, EncoderLayer, FullAttention, AttentionLayer
 import torch.nn.functional as F
-from layers.Embed import DataEmbedding_inverted
-from layers.Embed import PatchEmbedding
-from einops import rearrange, repeat
+from einops import rearrange
+from timm.models.layers import to_2tuple
 import selective_scan_cuda_oflex_rh
 import math
 from einops import rearrange, repeat
 from timm.models.layers import DropPath, trunc_normal_
 from functools import partial
 from typing import Optional, Callable
+
 import DCNv4
 
 class SelectiveScanStateFn(torch.autograd.Function):
@@ -81,7 +78,7 @@ def selective_scan_fn(u, delta, A, B, D=None, z=None, delta_bias=None, delta_sof
 
     return SelectiveScanStateFn.apply(u, delta, A, B, D, z, delta_bias, delta_softplus, return_last_state)
 
-class Mlp(nn.Module):
+class Mlp(nn.Cell):
     """
     Implementation of MLP layer with 1*1 convolutions.
     Input: tensor with shape [B, C, H, W]
@@ -115,14 +112,12 @@ class Mlp(nn.Module):
         x = self.drop(x)
         return x
 
-class ProMamba(nn.Module):
+class ProMamba(nn.Cell):
     def __init__(
         self,
         d_model,
-        n_var = 7,
-        patch_num=12,
         d_state=1,
-        d_conv=5,
+        d_conv=3,
         expand=1,
         dt_rank="auto",
         dt_min=0.001,
@@ -135,6 +130,7 @@ class ProMamba(nn.Module):
         bias=False,
         device=None,
         dtype=None,
+        index=0,
         **kwargs,
     ):
         factory_kwargs = {"device": device, "dtype": dtype}
@@ -145,8 +141,6 @@ class ProMamba(nn.Module):
         self.expand = expand
         self.d_inner = int(self.expand * self.d_model)
         self.dt_rank = math.ceil(self.d_model / 16) if dt_rank == "auto" else dt_rank
-        self.patch_num = patch_num
-        self.n_var = n_var
 
         self.in_proj = nn.Linear(self.d_model, self.d_inner * 2, bias=bias, **factory_kwargs)
         self.conv2d = nn.Conv1d(
@@ -174,15 +168,14 @@ class ProMamba(nn.Module):
 
         self.selective_scan = selective_scan_fn
 
-        state_dim = self.d_inner // self.patch_num
         self.state_pro = getattr(DCNv4, 'DCNv4')(
-            channels=state_dim,
-            kernel_size = 3,
-            group=state_dim // 16,
+            channels=self.d_inner,
+            group=self.group,
             offset_scale=0.5,
             dw_kernel_size=None,
             output_bias=False,
         )
+
 
         self.out_norm = nn.LayerNorm(self.d_inner)
         self.out_proj = nn.Linear(self.d_inner, self.d_model, bias=bias, **factory_kwargs)
@@ -199,7 +192,7 @@ class ProMamba(nn.Module):
                 torch.rand(d_inner, **factory_kwargs) * (math.log(dt_max) - math.log(dt_min))
                 + math.log(dt_min)
             ).clamp(min=dt_init_floor)
-            # Inverse of softplus: https://github.com/pytorch/pytorch/issues/72759
+            # Inverse of softplus: https://github.com/pymindspore/pymindspore/issues/72759
             inv_dt = dt + torch.log(-torch.expm1(-dt))
 
             with torch.no_grad():
@@ -282,10 +275,8 @@ class ProMamba(nn.Module):
             return_last_state=False,
         )
 
-        h = h.reshape(B, self.patch_num, C//self.patch_num, -1)
-        h = rearrange(h, "b p pd n -> b (p n) pd")
-        h = self.state_pro(h, shape=(self.patch_num, self.n_var))
-        h = rearrange(h, "b (p n) pd -> b (p pd) n", p=self.patch_num, n=self.n_var)
+        h = rearrange(h, "b d 1 n -> b 1 d n")
+        h = self.state_pro(h)
         
         y = h * Cs
         y = y + xs * Ds.view(-1, 1)
@@ -299,6 +290,7 @@ class ProMamba(nn.Module):
         x, z = xz.chunk(2, dim=-1) 
 
         x = rearrange(x, 'b n d -> b d n').contiguous()
+        # x = self.act(self.conv2d(x)) 
 
         y = self.ssm(x) 
 
@@ -306,19 +298,18 @@ class ProMamba(nn.Module):
 
         y = self.out_norm(y)
         y = y * F.silu(z)
-
+        # y = self.out_proj(y)
         if self.dropout is not None:
             y = self.dropout(y)
         return y
 
 
-class ProBlock(nn.Module):
+class ProBlock(nn.Cell):
     def __init__(
         self,
         hidden_dim: int = 0,
-        patch_num: int = 12,
-        drop_path: float = 0.0,
-        norm_layer: Callable[..., torch.nn.Module] = partial(nn.LayerNorm, eps=1e-6),
+        drop_path: float = 0.2,
+        norm_layer: Callable[..., torch.nn.Cell] = partial(nn.LayerNorm, eps=1e-6),
         # =============================
         ssm_d_state: int = 1,
         ssm_ratio=1.0,
@@ -335,7 +326,7 @@ class ProBlock(nn.Module):
         mlp_drop_rate: float = 0.0,
         # =============================
         use_checkpoint: bool = False,
-        n_var=7,
+        index = 0,
         **kwargs,
     ):
         super().__init__()
@@ -346,7 +337,6 @@ class ProBlock(nn.Module):
         if self.ssm_branch:
             self.op = ProMamba(
                 d_model=hidden_dim, 
-                patch_num = patch_num,
                 d_state=ssm_d_state, 
                 ssm_ratio=ssm_ratio,
                 ssm_rank_ratio=ssm_rank_ratio,
@@ -356,11 +346,10 @@ class ProBlock(nn.Module):
                 conv_bias=ssm_conv_bias,
                 # ==========================
                 dropout=ssm_drop_rate,
-                n_var=n_var,
+                index = index,
             )
             self.op2 = ProMamba(
                 d_model=hidden_dim, 
-                patch_num = patch_num,
                 d_state=ssm_d_state, 
                 ssm_ratio=ssm_ratio,
                 ssm_rank_ratio=ssm_rank_ratio,
@@ -370,7 +359,7 @@ class ProBlock(nn.Module):
                 conv_bias=ssm_conv_bias,
                 # ==========================
                 dropout=ssm_drop_rate,
-                n_var= n_var,
+                index = index,
             )
         
         self.drop_path = DropPath(drop_path)
@@ -381,18 +370,18 @@ class ProBlock(nn.Module):
 
     def forward(self, input: torch.Tensor):
         if self.ssm_branch:
-            x = input + self.drop_path(self.op(input) +self.op2(input.flip(dims=[1])).flip(dims=[1])) # b n p d
+            x = input + self.drop_path(self.op(input)+self.op2(input.flip(dims=[1])).flip(dims=[1]))
         if self.mlp_branch:
             x = x + self.drop_path(self.mlp(x)) # FFN
         return x
 
 
 
-class Encoder(nn.Module):
+class Encoder(nn.Cell):
     def __init__(self, attn_layers, conv_layers=None, norm_layer=None):
         super(Encoder, self).__init__()
-        self.attn_layers = nn.ModuleList(attn_layers)
-        self.conv_layers = nn.ModuleList(conv_layers) if conv_layers is not None else None
+        self.attn_layers = nn.CellList(attn_layers)
+        self.conv_layers = nn.CellList(conv_layers) if conv_layers is not None else None
         self.norm = norm_layer
 
     def forward(self, x, attn_mask=None, tau=None, delta=None):
@@ -404,117 +393,3 @@ class Encoder(nn.Module):
             x = self.norm(x)
 
         return x
-
-#上面是timepro
-class DUETModel(nn.Module):
-    def __init__(self, config):
-        super(DUETModel, self).__init__()
-        self.cluster = Linear_extractor_cluster(config)
-        self.CI = config.CI
-        self.n_vars = config.enc_in
-        self.mask_generator = Mahalanobis_mask(config.seq_len)
-        self.Channel_transformer = Encoder(
-            [
-                EncoderLayer(
-                    AttentionLayer(
-                        FullAttention(
-                            True,
-                            config.factor,
-                            attention_dropout=config.dropout,
-                            output_attention=config.output_attention,
-                        ),
-                        config.d_model,
-                        config.n_heads,
-                    ),
-                    config.d_model,
-                    config.d_ff,
-                    dropout=config.dropout,
-                    activation=config.activation,
-                )
-                for _ in range(config.e_layers)
-            ],
-            norm_layer=torch.nn.LayerNorm(config.d_model)
-        )
-        self.seq_len = config.seq_len
-        self.pred_len = config.pred_len
-        self.use_norm = config.use_norm
-        patch_len = config.patch_len
-        stride = config.stride
-        padding = stride
-
-        # Embedding
-        # patching and embedding
-        self.patch_embedding = PatchEmbedding(
-            config.d_model, patch_len, stride, padding, config.dropout)
-        
-        self.patch_num = int((config.seq_len - patch_len) / stride + 2)
-
-        self.head_nf = config.d_model * self.patch_num
-        self.use_norm = config.use_norm                       
-
-        # Encoder-only architecture
-        self.encoder = Encoder(
-            [
-                ProBlock(self.head_nf, self.patch_num, n_var=config.enc_in) for l in range(config.e_layers)
-            ],
-            norm_layer=torch.nn.LayerNorm(self.head_nf)
-        )
-
-        self.linear_head = nn.Sequential(nn.Linear(config.d_model, config.pred_len), nn.Dropout(config.fc_dropout))
-
-    def forward(self, input):
-
-        if self.use_norm:
-            # Normalization from Non-stationary Transformer
-            # 非平稳transforemer是指处理数据特性随时间变化的transforemer,他们的模型更加考虑适应非平稳性，对数据进行归一化处理是重要操作
-            means = x_enc.mean(1, keepdim=True).detach()
-            x_enc = x_enc - means
-            stdev = torch.sqrt(
-                torch.var(x_enc, dim=1, keepdim=True, unbiased=False) + 1e-5)
-            x_enc /= stdev
-
- # do patching and embedding
-        x_enc = x_enc.permute(0, 2, 1)#bln->bnl
-        # u: [bs * nvars x patch_num x d_model]
-        enc_out, n_vars = self.patch_embedding(x_enc)#bnl->bnpd
-
-        enc_out = rearrange(enc_out, "(b n) p d -> b n (p d)", n=n_vars)# bnl
-        input=enc_out.permute(0,2,1)#bln
-
-
-        # x: [batch_size, seq_len, n_vars]
-        if self.CI:
-            channel_independent_input = rearrange(input, 'b l n -> (b n) l 1')#(bn)l1
-
-            reshaped_output = self.encoder(channel_independent_input, attn_mask=None)#bn l 1
-            
-            temporal_feature = rearrange(reshaped_output, '(b n) l 1 -> b l n', b=input.shape[0])
-
-        else:
-            temporal_feature = self.encoder(input, attn_mask=None)#bln->bln
-
-#这里不知道为啥跳过了，dl可以互等吗，有时候直接用d表示，l表示n啥的
-        # B x d_model x n_vars -> B x n_vars x d_model
-        temporal_feature = rearrange(temporal_feature, 'b d n -> b n d')#bln->bnl
-        if self.n_vars > 1:
-            changed_input = rearrange(input, 'b l n -> b n l')
-            channel_mask = self.mask_generator(changed_input)
-
-            channel_group_feature, attention = self.Channel_transformer(x=temporal_feature, attn_mask=channel_mask)#bnl->bnl
-
-            output = self.linear_head(channel_group_feature)
-        else:
-            output = temporal_feature
-            output = self.linear_head(output)#bnl->bnd
-        
-        output = rearrange(output, 'b n d -> b d n')
-
-        if self.use_norm:
-            # De-Normalization from Non-stationary Transformer
-            output = output * \
-                    (stdev[:, 0, :].unsqueeze(1).repeat(1, self.pred_len, 1))
-            output = output + \
-                    (means[:, 0, :].unsqueeze(1).repeat(1, self.pred_len, 1))
-            
-
-        return output[:, -self.pred_len:, :]
