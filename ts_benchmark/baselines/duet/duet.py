@@ -53,7 +53,7 @@ DEFAULT_TRANSFORMER_BASED_HYPER_PARAMS = {
     'feature':'M',
     "seq_len": 96,#timepro默认为96，但是在命令行里duet一般设置为336
     "pred_len": 96,#这个参数的值等同于horizon，但是我不知道怎么让他们同步，所以在这里用默认值把它写死，如果要同步的话应该在config里加个属性，具体来说就是在TransformerConfig里加个@property pred_len，
-
+    'model':'TimePro',
 }
 
 
