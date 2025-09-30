@@ -3,7 +3,7 @@ import torch.nn as nn
 from einops import rearrange
 from ts_benchmark.baselines.duet.utils.masked_attention import Mahalanobis_mask, Encoder, EncoderLayer, FullAttention, AttentionLayer
 import torch
-from TimePro import Model as TimeProModel
+from ts_benchmark.baselines.duet.models.TimePro import Model as TimeProModel
 
 class DUETModel(nn.Module):
     def __init__(self, config):
