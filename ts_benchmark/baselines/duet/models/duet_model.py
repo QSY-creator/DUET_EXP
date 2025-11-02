@@ -4,8 +4,8 @@ import torch.nn as nn
 from einops import rearrange
 from ts_benchmark.baselines.duet.utils.masked_attention import Mahalanobis_mask, Encoder, EncoderLayer, FullAttention, AttentionLayer
 import torch.nn.functional as F
-from layers.Embed import DataEmbedding_inverted
-from layers.Embed import PatchEmbedding
+from ts_benchmark.baselines.duet.layers.Embed import DataEmbedding_inverted
+from ts_benchmark.baselines.duet.layers.Embed import PatchEmbedding
 from einops import rearrange, repeat
 import selective_scan_cuda_oflex_rh
 import math
