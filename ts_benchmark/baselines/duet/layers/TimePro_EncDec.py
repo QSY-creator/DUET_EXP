@@ -6,11 +6,69 @@ from timm.models.layers import to_2tuple
 import selective_scan_cuda_oflex_rh
 import math
 from einops import rearrange, repeat
-from timm.models.layers import DropPath, trunc_normal_
+
 from functools import partial
 from typing import Optional, Callable
 
 import DCNv4
+
+import math
+import torch
+import torch.nn as nn
+
+# ============ DropPath 实现 ============
+class DropPath(nn.Module):
+    """Drop paths (Stochastic Depth) per sample  (when applied in main path of residual blocks).
+    """
+    def __init__(self, drop_prob=0.):
+        super(DropPath, self).__init__()
+        self.drop_prob = drop_prob
+
+    def forward(self, x):
+        if self.drop_prob == 0. or not self.training:
+            return x
+        keep_prob = 1 - self.drop_prob
+        # 在batch维度上随机丢弃
+        shape = (x.shape[0],) + (1,) * (x.ndim - 1)  # (B, 1, 1, ...)
+        random_tensor = keep_prob + torch.rand(shape, dtype=x.dtype, device=x.device)
+        random_tensor.floor_()  # 二值化
+        output = x.div(keep_prob) * random_tensor
+        return output
+
+# ============ trunc_normal_ 实现 ============
+def trunc_normal_(tensor, mean=0., std=1., a=-2., b=2.):
+    """Fills the input Tensor with values drawn from a truncated normal distribution.
+    
+    Args:
+        tensor: n维 tensor
+        mean: 正态分布的均值
+        std: 正态分布的标准差
+        a: 最小截断值
+        b: 最大截断值
+    """
+    def norm_cdf(x):
+        # 标准正态分布的累积分布函数
+        return (1. + math.erf(x / math.sqrt(2.))) / 2.
+
+    with torch.no_grad():
+        # 将截断值标准化
+        l = norm_cdf((a - mean) / std)
+        u = norm_cdf((b - mean) / std)
+
+        # 均匀采样，然后使用逆CDF变换（逆变换采样）
+        tensor.uniform_(2 * l - 1, 2 * u - 1)
+
+        # 使用逆误差函数
+        tensor.erfinv_()
+
+        # 变换到截断正态分布
+        tensor.mul_(std * math.sqrt(2.))
+        tensor.add_(mean)
+
+        # 截断到 [a, b]
+        tensor.clamp_(min=a, max=b)
+        return tensor
+
 
 class SelectiveScanStateFn(torch.autograd.Function):
     @staticmethod
@@ -302,7 +360,6 @@ class ProMamba(nn.Cell):
         if self.dropout is not None:
             y = self.dropout(y)
         return y
-
 
 class ProBlock(nn.Cell):
     def __init__(

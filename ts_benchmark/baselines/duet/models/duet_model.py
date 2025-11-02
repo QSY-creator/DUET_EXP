@@ -10,7 +10,7 @@ from einops import rearrange, repeat
 import selective_scan_cuda_oflex_rh
 import math
 from einops import rearrange, repeat
-from timm.models.layers import DropPath, trunc_normal_
+from ts_benchmark.baselines.duet.layers.TimePro_EncDec import DropPath, trunc_normal_
 from functools import partial
 from typing import Optional, Callable
 import DCNv4
