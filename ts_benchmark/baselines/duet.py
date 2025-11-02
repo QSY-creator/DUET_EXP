@@ -15,7 +15,7 @@ from ts_benchmark.baselines.utils import (
     get_time_mark
 )
 from ts_benchmark.baselines.duet.models.duet_model import DUETModel
-from ts_benchmark.baselines.duet.models.model_base import ModelBase, BatchMaker
+from ts_benchmark.models.model_base import ModelBase, BatchMaker
 
 DEFAULT_TRANSFORMER_BASED_HYPER_PARAMS = {
     "enc_in": 1,
