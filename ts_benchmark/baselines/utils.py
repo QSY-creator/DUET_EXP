@@ -11,7 +11,16 @@ from ts_benchmark.baselines.duet.utils.timefeatures import (
 )
 from ts_benchmark.utils.data_processing import split_before
 
+from collections.abc import Iterable
 
+def to_2tuple(x):
+    """
+    将输入转换为长度为2的元组。
+    常用于处理卷积核、步长等参数。
+    """
+    if isinstance(x, Iterable) and not isinstance(x, str):
+        return tuple(x)
+    return (x, x)
 class SlidingWindowDataLoader:
     """
     SlidingWindDataLoader class.

@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from einops import rearrange
-from timm.models.layers import to_2tuple
+from ts_benchmark.baselines.utils import to_2tuple
 import selective_scan_cuda_oflex_rh
 import math
 from einops import rearrange, repeat
