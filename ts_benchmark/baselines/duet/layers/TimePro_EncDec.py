@@ -136,7 +136,7 @@ def selective_scan_fn(u, delta, A, B, D=None, z=None, delta_bias=None, delta_sof
 
     return SelectiveScanStateFn.apply(u, delta, A, B, D, z, delta_bias, delta_softplus, return_last_state)
 
-class Mlp(nn.Cell):
+class Mlp(nn.Module):
     """
     Implementation of MLP layer with 1*1 convolutions.
     Input: tensor with shape [B, C, H, W]
@@ -170,7 +170,7 @@ class Mlp(nn.Cell):
         x = self.drop(x)
         return x
 
-class ProMamba(nn.Cell):
+class ProMamba(nn.Module):
     def __init__(
         self,
         d_model,
@@ -361,12 +361,12 @@ class ProMamba(nn.Cell):
             y = self.dropout(y)
         return y
 
-class ProBlock(nn.Cell):
+class ProBlock(nn.Module):
     def __init__(
         self,
         hidden_dim: int = 0,
         drop_path: float = 0.2,
-        norm_layer: Callable[..., torch.nn.Cell] = partial(nn.LayerNorm, eps=1e-6),
+        norm_layer: Callable[..., torch.nn.Module] = partial(nn.LayerNorm, eps=1e-6),
         # =============================
         ssm_d_state: int = 1,
         ssm_ratio=1.0,
@@ -434,11 +434,11 @@ class ProBlock(nn.Cell):
 
 
 
-class Encoder(nn.Cell):
+class Encoder(nn.Module):
     def __init__(self, attn_layers, conv_layers=None, norm_layer=None):
         super(Encoder, self).__init__()
-        self.attn_layers = nn.CellList(attn_layers)
-        self.conv_layers = nn.CellList(conv_layers) if conv_layers is not None else None
+        self.attn_layers = nn.ModuleList(attn_layers)
+        self.conv_layers = nn.ModuleList(conv_layers) if conv_layers is not None else None
         self.norm = norm_layer
 
     def forward(self, x, attn_mask=None, tau=None, delta=None):
