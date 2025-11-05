@@ -69,22 +69,24 @@ class FullAttention(nn.Module):
     def __init__(self, mask_flag=True, factor=5, scale=None, attention_dropout=0.1, output_attention=False):
         super(FullAttention, self).__init__()
         self.scale = scale
-        self.mask_flag = mask_flag
+        self.mask_flag = mask_flag # 此标志现在用于控制是否应用 attn_mask (我们的图偏置)
         self.output_attention = output_attention
         self.dropout = nn.Dropout(attention_dropout)
 
     def forward(self, queries, keys, values, attn_mask, tau=None, delta=None):
-        B, L, H, E = queries.shape # L在这里是n_vars
-        _, S, _, D = values.shape
+        B, L, H, E = queries.shape # L is num_vars
+        _, S, _, D = values.shape # S is num_vars
         scale = self.scale or 1. / sqrt(E)
 
-        scores = torch.einsum("blhe,bshe->bhls", queries, keys)
+        scores = torch.einsum("blhe,bshe->bhls", queries, keys) # shape: [B, H, L, S]
 
-        if attn_mask is not None:
+        # +++ START: 关键修正 - 正确地将图结构作为注意力偏置注入 +++
+        if self.mask_flag and attn_mask is not None:
             # attn_mask (adj_matrix) shape: [B, L, S]
-            # 需要扩展以匹配 scores 的 shape [B, H, L, S]
+            # 我们需要将其扩展以匹配 scores 的多头维度 [B, H, L, S]
             bias = attn_mask.unsqueeze(1).repeat(1, H, 1, 1)
-            scores = scores + bias # <-- 核心缝合点：将图结构作为偏置项加入
+            scores = scores + bias # 直接将学习到的图关系作为偏置项加入
+        # +++ END: 关键修正 +++
 
         A = self.dropout(torch.softmax(scale * scores, dim=-1))
         V = torch.einsum("bhls,bshd->blhd", A, values)
@@ -93,7 +95,6 @@ class FullAttention(nn.Module):
             return V.contiguous(), A
         else:
             return V.contiguous(), None
-
 
 class AttentionLayer(nn.Module):
     def __init__(self, attention, d_model, n_heads, d_keys=None,
