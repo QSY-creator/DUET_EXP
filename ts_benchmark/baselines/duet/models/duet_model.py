@@ -467,14 +467,14 @@ class DUETModel(nn.Module):
         if self.use_norm:
             # Normalization from Non-stationary Transformer
             # 非平稳transforemer是指处理数据特性随时间变化的transforemer,他们的模型更加考虑适应非平稳性，对数据进行归一化处理是重要操作
-            means = x_enc.mean(1, keepdim=True).detach()
-            x_enc = x_enc - means
+            means = input.mean(1, keepdim=True).detach()
+            input = input - means
             stdev = torch.sqrt(
-                torch.var(x_enc, dim=1, keepdim=True, unbiased=False) + 1e-5)
-            x_enc /= stdev
+                torch.var(input, dim=1, keepdim=True, unbiased=False) + 1e-5)
+            x_enc =input/ stdev
 
  # do patching and embedding
-        x_enc = x_enc.permute(0, 2, 1)#bln->bnl
+        x_enc = x_enc.input/permute(0, 2, 1)#bln->bnl
         # u: [bs * nvars x patch_num x d_model]
         enc_out, n_vars = self.patch_embedding(x_enc)#bnl->bnpd
 
