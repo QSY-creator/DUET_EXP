@@ -409,112 +409,120 @@ class Encoder(nn.Module):
 class DUETModel(nn.Module):
     def __init__(self, config):
         super(DUETModel, self).__init__()
-        self.cluster = Linear_extractor_cluster(config)
-        self.CI = config.CI
+
+        # --- 1. 参数初始化 ---
+        self.seq_len = config.seq_len
+        self.pred_len = config.pred_len
+        self.d_model = config.d_model
         self.n_vars = config.enc_in
-        self.mask_generator = Mahalanobis_mask(config.seq_len)
-        self.Channel_transformer = Encoder(
+        self.use_norm = config.use_norm
+
+        patch_len = config.patch_len
+        stride = config.stride
+        
+        # --- 2. 分块嵌入层 (Patching) ---
+        # 这个模块会将每个通道 [L] -> [P, D], P=patch_num, D=d_model
+        self.patch_embedding = PatchEmbedding(
+            self.d_model, patch_len, stride, stride, config.dropout)
+        
+        self.patch_num = int((self.seq_len - patch_len) / stride + 2)
+
+        # --- 3. 通道独立的时序建模模块 (Temporal Mamba Encoder) ---
+        # 关键修正：这里的ProBlock的维度是 d_model，而不是 head_nf
+        # 它处理的是 [B * N, P, D] 形状的张量
+        self.temporal_encoder = Encoder(
+            [
+                ProBlock(
+                    hidden_dim=self.d_model, 
+                    patch_num=self.patch_num, 
+                    n_var=self.n_vars
+                ) for l in range(config.e_layers)
+            ],
+            norm_layer=torch.nn.LayerNorm(self.d_model)
+        )
+
+        # --- 4. 通道混合的变量建模模块 (Variable-mixing Transformer) ---
+        # 这个Transformer处理的是 [B, N, D] 形状的张量
+        # 它在变量（通道）维度上做自注意力
+        self.variable_transformer = Encoder(
             [
                 EncoderLayer(
                     AttentionLayer(
                         FullAttention(
-                            True,
+                            False, # Mask a-priori is not needed for variable attention
                             config.factor,
                             attention_dropout=config.dropout,
                             output_attention=config.output_attention,
                         ),
-                        config.d_model,
+                        self.d_model, # Attention is over d_model features
                         config.n_heads,
                     ),
-                    config.d_model,
+                    self.d_model,
                     config.d_ff,
                     dropout=config.dropout,
                     activation=config.activation,
                 )
-                for _ in range(config.e_layers)
+                for _ in range(config.e_layers) # 可以为它设置独立的层数，这里复用 e_layers
             ],
-            norm_layer=torch.nn.LayerNorm(config.d_model)
-        )
-        self.seq_len = config.seq_len
-        self.pred_len = config.pred_len
-        self.use_norm = config.use_norm
-        patch_len = config.patch_len
-        stride = config.stride
-        padding = stride
-
-        # Embedding
-        # patching and embedding
-        self.patch_embedding = PatchEmbedding(
-            config.d_model, patch_len, stride, padding, config.dropout)
-        
-        self.patch_num = int((config.seq_len - patch_len) / stride + 2)
-
-        self.head_nf = config.d_model * self.patch_num
-        self.use_norm = config.use_norm                       
-
-        # Encoder-only architecture
-        self.encoder = Encoder(
-            [
-                ProBlock(self.head_nf, self.patch_num, n_var=config.enc_in) for l in range(config.e_layers)
-            ],
-            norm_layer=torch.nn.LayerNorm(self.head_nf)
+            norm_layer=torch.nn.LayerNorm(self.d_model)
         )
 
-        self.linear_head = nn.Sequential(nn.Linear(config.d_model, config.pred_len), nn.Dropout(config.fc_dropout))
+        # --- 5. 预测头 (Prediction Head) ---
+        # 输入是 [B, N, D], 输出是 [B, N, Pred_Len]
+        self.head = nn.Linear(self.d_model, self.pred_len)
 
-    def forward(self, input):
 
+    def forward(self, x_enc: torch.Tensor, *args, **kwargs):
+        # x_enc: [Batch, Seq_Len, N_Vars]
+
+        # --- 1. 实例归一化 ---
         if self.use_norm:
-            # Normalization from Non-stationary Transformer
-            # 非平稳transforemer是指处理数据特性随时间变化的transforemer,他们的模型更加考虑适应非平稳性，对数据进行归一化处理是重要操作
-            means = input.mean(1, keepdim=True).detach()
-            input = input - means
-            stdev = torch.sqrt(
-                torch.var(input, dim=1, keepdim=True, unbiased=False) + 1e-5)
-            x_enc =input/ stdev
-
- # do patching and embedding
-        x_enc = x_enc.input/permute(0, 2, 1)#bln->bnl
-        # u: [bs * nvars x patch_num x d_model]
-        enc_out, n_vars = self.patch_embedding(x_enc)#bnl->bnpd
-
-        enc_out = rearrange(enc_out, "(b n) p d -> b n (p d)", n=n_vars)# bnl
-        input=enc_out.permute(0,2,1)#bln
-
-
-        # x: [batch_size, seq_len, n_vars]
-        if self.CI:
-            channel_independent_input = rearrange(input, 'b l n -> (b n) l 1')#(bn)l1
-
-            reshaped_output = self.encoder(channel_independent_input, attn_mask=None)#bn l 1
-            
-            temporal_feature = rearrange(reshaped_output, '(b n) l 1 -> b l n', b=input.shape[0])
-
-        else:
-            temporal_feature = self.encoder(input, attn_mask=None)#bln->bln
-
-#这里不知道为啥跳过了，dl可以互等吗，有时候直接用d表示，l表示n啥的
-        # B x d_model x n_vars -> B x n_vars x d_model
-        temporal_feature = rearrange(temporal_feature, 'b d n -> b n d')#bln->bnl
-        if self.n_vars > 1:
-            changed_input = rearrange(input, 'b l n -> b n l')
-            channel_mask = self.mask_generator(changed_input)
-
-            channel_group_feature, attention = self.Channel_transformer(x=temporal_feature, attn_mask=channel_mask)#bnl->bnl
-
-            output = self.linear_head(channel_group_feature)
-        else:
-            output = temporal_feature
-            output = self.linear_head(output)#bnl->bnd
+            means = x_enc.mean(1, keepdim=True).detach()
+            x_enc = x_enc - means
+            stdev = torch.sqrt(torch.var(x_enc, dim=1, keepdim=True, unbiased=False) + 1e-5)
+            x_enc /= stdev
         
-        output = rearrange(output, 'b n d -> b d n')
+        # --- 2. 分块 & 嵌入 ---
+        # Permute to [B, N, L] to match PatchEmbedding's expectation
+        x_enc = x_enc.permute(0, 2, 1)
+        # Output enc_out: [B * N, P, D] where P=patch_num, D=d_model
+        enc_out, n_vars = self.patch_embedding(x_enc)
 
+        # --- 3. 通道独立的时序建模 ---
+        # Mamba Encoder processes each channel independently
+        # Input: [B * N, P, D], Output: [B * N, P, D]
+        temporal_features = self.temporal_encoder(enc_out)
+
+        # --- 4. 展平 & 重塑，为通道混合做准备 ---
+        # 我们需要一个能代表每个通道的特征向量。这里我们简单地将所有补丁的特征展平。
+        # Output: [B * N, P * D]
+        temporal_features_flat = temporal_features.reshape(temporal_features.shape[0], -1)
+
+        # 为了简化，我们用一个线性层将 P*D 降维回 D，得到每个通道的摘要特征
+        # 这是一个可选步骤，但可以控制模型大小
+        # 这里为了演示清晰，我们假设每个通道的最终特征维度是 d_model
+        # 实际应用中可能需要一个专门的降维层
+        # 我们这里采用一个更简单的方式：取最后一个补丁的特征作为代表
+        # Output: [B * N, D]
+        channel_summary_features = temporal_features[:, -1, :]
+        
+        # Reshape to [B, N, D] for variable mixing
+        variable_features = channel_summary_features.reshape(-1, n_vars, self.d_model)
+
+        # --- 5. 通道混合 ---
+        # Transformer processes relationships between variables
+        # Input: [B, N, D], Output: [B, N, D]
+        mixed_features = self.variable_transformer(variable_features)
+        
+        # --- 6. 预测 ---
+        # Input: [B, N, D], Output: [B, N, Pred_Len]
+        prediction = self.head(mixed_features)
+
+        # Permute back to [B, Pred_Len, N] for the framework
+        prediction = prediction.permute(0, 2, 1)
+
+        # --- 7. 反归一化 ---
         if self.use_norm:
-            # De-Normalization from Non-stationary Transformer
-            output = output * \
-                    (stdev[:, 0, :].unsqueeze(1).repeat(1, self.pred_len, 1))
-            output = output + \
-                    (means[:, 0, :].unsqueeze(1).repeat(1, self.pred_len, 1))
-            
-
-        return output[:, -self.pred_len:, :]
+            prediction = prediction * (stdev.permute(0, 2, 1)) + (means.permute(0, 2, 1))
+        
+        return prediction[:, -self.pred_len:, :]
