@@ -6,4 +6,3 @@ python ./scripts/run_benchmark.py --config-path "rolling_forecast_config.json" -
 
 python ./scripts/run_benchmark.py --config-path "rolling_forecast_config.json" --data-name-list "ETTh1.csv" --strategy-args '{"horizon": 720}' --model-name "duet.DUET" --model-hyper-params '{"CI": 1, "batch_size": 32, "d_ff": 512, "d_model": 512, "dropout": 0.2, "e_layers": 2, "factor": 3, "fc_dropout": 0.1, "horizon": 720, "k": 2, "loss": "MAE", "lr": 0.0005, "lradj": "type1", "n_heads": 1, "norm": true, "num_epochs": 100, "num_experts": 4, "patch_len": 48, "patience": 5, "seq_len": 512}' --deterministic "full" --gpus 0 --num-workers 1 --timeout 60000 --save-path "ETTh1/DUET"
 
-scripts\multivariate_forecast\ETTh1_script\DUET.sh
