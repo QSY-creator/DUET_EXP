@@ -74,22 +74,17 @@ class FullAttention(nn.Module):
         self.dropout = nn.Dropout(attention_dropout)
 
     def forward(self, queries, keys, values, attn_mask, tau=None, delta=None):
-        B, L, H, E = queries.shape
+        B, L, H, E = queries.shape # L在这里是n_vars
         _, S, _, D = values.shape
         scale = self.scale or 1. / sqrt(E)
 
         scores = torch.einsum("blhe,bshe->bhls", queries, keys)
 
-        # if self.mask_flag:
-        #     large_negative = -math.log(1e10)
-        #     attention_mask = torch.where(attn_mask == 0, torch.tensor(large_negative), attn_mask)
-        #
-        #     scores = scores * attention_mask
-        if self.mask_flag:
-            large_negative = -math.log(1e10)
-            attention_mask = torch.where(attn_mask == 0, large_negative, 0)
-
-            scores = scores * attn_mask + attention_mask
+        if attn_mask is not None:
+            # attn_mask (adj_matrix) shape: [B, L, S]
+            # 需要扩展以匹配 scores 的 shape [B, H, L, S]
+            bias = attn_mask.unsqueeze(1).repeat(1, H, 1, 1)
+            scores = scores + bias # <-- 核心缝合点：将图结构作为偏置项加入
 
         A = self.dropout(torch.softmax(scale * scores, dim=-1))
         V = torch.einsum("bhls,bshd->blhd", A, values)
